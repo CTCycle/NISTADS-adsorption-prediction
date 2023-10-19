@@ -11,19 +11,33 @@ The NIST/ARPA-E Database of Novel and Emerging Adsorbent Materials is a free, we
 
 The data used for the machine learning training has been extracted using another python application I wrote togehter with this one (see https://github.com/CTCycle/NISTADS-data-collection), which makes use of the NIST/ARPA-E Database API to collect adsorption isotherm data for both single component experiments and binary mixture experiments. Such script can also perform chemical data mining to add chemical features for the sorbates included in the adsorption isotherm dataset. The two generate datasets (single component and binary mixture data) must be used as input data for the deep learning model training and evaluation.
 
-## Code structure
-The Python-based application for this project is organized into several submodules, each performing distinct operations. This includes data preprocessing and model training/evaluation. The main driver script ties all these modules together, orchestrating the flow of data through the pipeline from extraction to prediction.
+## How to use
+The Python-based application for this project is organized into several submodules, each performing distinct operations. This includes data preprocessing and model training/evaluation. Run the NISTADS_main.py file to launch the script and use the main menu to navigate the different options.
+
+**The main options are as following:**
+1) SCADS framework: training and predictions                   
+2) BNADS framework: training and predictions                                    
+3) Exit and close
+
+**Any of the first two options** will open a submenu to select operations for the selected DNN model:
+1) Preprocess data for MODELNAME model training
+2) Pretrain MODELNAME model
+3) Validation of pretrained models
+4) Predict adsorption of compounds            
+5) Go back to main menu
 
 
 ### Data preprocessing
 This module handles the cleaning and preprocessing of the previosuly extracted data, including conversion of pressure and uptake units an common univoque dimension: Pascal (Pa) is used for pressure, while mol/g is used for the adsorbed amount. It includes functions for handling missing values, outliers, and data normalization. 
-
 
 ### Model training
 This module contains the machine learning algorithms used to train the model. It includes functions for model selection, hyperparameter tuning, and cross-validation to ensure the robustness of the model.
 
 ### Model evaluation
 This module is used to evaluate the performance of the trained model using various metrics such as Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), and R-squared (R²) score.
+
+### Adsorption prediction
+Coming soon
 
 ## Future Work
 The project is ongoing, and future work will focus on improving the accuracy of the model by incorporating more sophisticated machine learning algorithms and exploring more feature engineering techniques. Additionally, efforts will be made to update the model as new data becomes available in the NIST/ARPA-E Database.

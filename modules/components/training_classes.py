@@ -170,7 +170,7 @@ class DataGenerator(keras.utils.Sequence):
 class SCADSModel:
 
     def __init__(self, learning_rate, num_features, pad_length, pad_value, adsorbent_dims, 
-                 adsorbates_dims, embedding_dims):
+                 adsorbates_dims, embedding_dims, XLA_acceleration=False):
 
         self.learning_rate = learning_rate
         self.num_features = num_features
@@ -179,6 +179,7 @@ class SCADSModel:
         self.adsorbent_dims = adsorbent_dims
         self.adsorbates_dims = adsorbates_dims 
         self.embedding_dims = embedding_dims
+        self.XLA_state = XLA_acceleration
 
     #--------------------------------------------------------------------------
     def ContFeatModel(self):
@@ -300,7 +301,8 @@ class SCADSModel:
         opt = keras.optimizers.Adam(learning_rate=self.learning_rate)
         loss = keras.losses.MeanSquaredError()
         metrics = keras.metrics.MeanAbsoluteError()
-        model.compile(loss = loss, optimizer = opt, metrics = metrics, run_eagerly=False)            
+        model.compile(loss = loss, optimizer = opt, metrics = metrics, run_eagerly=False,
+                      jit_compile=self.XLA_state)            
         
         return model
     

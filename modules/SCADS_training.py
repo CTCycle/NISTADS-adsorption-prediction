@@ -130,17 +130,19 @@ trainworker.model_parameters(parameters, model_savepath)
 unique_adsorbents = len(adsorbent_encoder.categories_[0])
 unique_sorbates = len(sorbates_encoder.categories_[0])
 num_features = len(continuous_features)     
-SCADS_frame = SCADSModel(GlobVar.learning_rate, num_features, GlobVar.pad_length, GlobVar.pad_value,  
-                    unique_adsorbents, unique_sorbates, GlobVar.embedding_dims)
+SCADS_frame = SCADSModel(GlobVar.learning_rate, num_features, GlobVar.pad_length, 
+                         GlobVar.pad_value, unique_adsorbents, unique_sorbates, 
+                         GlobVar.embedding_dims, XLA_acceleration=GlobVar.XLA_acceleration)
 
 # build model
 #------------------------------------------------------------------------------
 model = SCADS_frame.SCADS()
 model.summary(expand_nested=True)
-plot_path = os.path.join(model_savepath, 'SCADS_model.png')       
-plot_model(model, to_file = plot_path, show_shapes = True, 
-           show_layer_names = True, show_layer_activations = True, 
-           expand_nested = True, rankdir = 'TB', dpi = 400) 
+if GlobVar.generate_model_graph == True:
+    plot_path = os.path.join(model_savepath, 'SCADS_model.png')       
+    plot_model(model, to_file = plot_path, show_shapes = True, 
+               show_layer_names = True, show_layer_activations = True, 
+               expand_nested = True, rankdir = 'TB', dpi = 400) 
 
 # [TRAINING WITH SCADS]
 #==============================================================================
@@ -151,18 +153,24 @@ plot_model(model, to_file = plot_path, show_shapes = True,
 
 # initialize callbacks
 #------------------------------------------------------------------------------
-log_path = os.path.join(model_savepath, 'tensorboard')
-tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_path, histogram_freq=1)
 RTH_callback = RealTimeHistory(model_savepath, validation=True)
 
 # training loop and model saving at end
 #------------------------------------------------------------------------------
 print(f'''Start model training for {GlobVar.epochs} epochs and batch size of {GlobVar.batch_size}
        ''')
-training = model.fit(train_inputs, train_uptakes, validation_data=(test_inputs, test_uptakes),
-                     epochs = GlobVar.epochs, batch_size=GlobVar.batch_size, 
-                     callbacks = [RTH_callback, tensorboard_callback],
-                     workers = 6, use_multiprocessing=True)
+if GlobVar.use_tensorboard == True:
+    log_path = os.path.join(model_savepath, 'tensorboard')
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_path, histogram_freq=1)
+    training = model.fit(train_inputs, train_uptakes, validation_data=(test_inputs, test_uptakes),
+                        epochs = GlobVar.epochs, batch_size=GlobVar.batch_size, 
+                        callbacks = [RTH_callback, tensorboard_callback],
+                        workers = 6, use_multiprocessing=True)
+else:
+    training = model.fit(train_inputs, train_uptakes, validation_data=(test_inputs, test_uptakes),
+                        epochs = GlobVar.epochs, batch_size=GlobVar.batch_size, 
+                        callbacks = [RTH_callback],
+                        workers = 6, use_multiprocessing=True)
 
 model.save(model_savepath)
         
