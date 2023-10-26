@@ -1,11 +1,12 @@
-import os
 import sys
+
+# set warnings
+#------------------------------------------------------------------------------
 import warnings
 warnings.simplefilter(action='ignore', category = Warning)
 
-# [IMPORT MODULES AND CLASSES]
-#==============================================================================
-sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
+# import modules and classes
+#------------------------------------------------------------------------------
 from modules.components.data_classes import UserOperations
 
 # [MAIN MENU]

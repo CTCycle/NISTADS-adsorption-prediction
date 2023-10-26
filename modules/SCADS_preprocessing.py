@@ -4,17 +4,23 @@ import pandas as pd
 import pickle 
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler, StandardScaler, OrdinalEncoder 
+from sklearn.preprocessing import MinMaxScaler, OrdinalEncoder 
 from tqdm import tqdm
-import warnings
-warnings.simplefilter(action='ignore', category = Warning)
 tqdm.pandas()
 
 
-# [IMPORT MODULES AND CLASSES]
-#==============================================================================
+# set warnings
+#------------------------------------------------------------------------------
+import warnings
+warnings.simplefilter(action='ignore', category = Warning)
+
+# add modules to sys path
+#------------------------------------------------------------------------------
 if __name__ == '__main__':
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+# import modules and classes
+#------------------------------------------------------------------------------
 from modules.components.data_classes import PreProcessing
 import modules.global_variables as GlobVar
 
