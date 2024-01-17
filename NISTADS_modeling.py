@@ -7,7 +7,7 @@ warnings.simplefilter(action='ignore', category = Warning)
 
 # import modules and classes
 #------------------------------------------------------------------------------
-from modules.components.data_classes import UserOperations
+from modules.components.data_assets import UserOperations
 
 # [MAIN MENU]
 #==============================================================================
@@ -20,9 +20,8 @@ operations_menu = {'1' : 'SCADS framework: training and predictions',
 
 SCADS_menu = {'1' : 'Preprocess data for model training',
               '2' : 'Pretrain model',
-              '3' : 'Validation of pretrained models',
-              '4' : 'Predict adsorption of compounds',              
-              '5' : 'Go back to main menu'}
+              '3' : 'Predict adsorption of compounds',              
+              '4' : 'Go back to main menu'}
 
 while True:
     print('------------------------------------------------------------------------')
@@ -40,14 +39,11 @@ while True:
                 del sys.modules['modules.SCADS_preprocessing']
             elif sec_sel == 2:
                 import modules.SCADS_training
-                del sys.modules['modules.SCADS_training']
+                del sys.modules['modules.SCADS_training']    
             elif sec_sel == 3:
-                import modules.SCADS_validation
-                del sys.modules['modules.SCADS_validation']
-            elif sec_sel == 4:
                 import modules.SCADS_predictions
                 del sys.modules['modules.SCADS_predictions']
-            elif sec_sel == 5:
+            elif sec_sel == 4:
                 break
         
     elif op_sel == 2:
