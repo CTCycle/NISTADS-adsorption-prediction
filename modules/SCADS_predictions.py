@@ -19,6 +19,7 @@ if __name__ == '__main__':
 from modules.components.data_classes import PreProcessing
 from modules.components.training_classes import ModelTraining
 import modules.global_variables as GlobVar
+import configurations as cnf
 
 # [LOAD ADSORPTION DATA FROM FILES]
 #==============================================================================
@@ -74,9 +75,11 @@ print()
 
 # identify columns
 #------------------------------------------------------------------------------ 
-continuous_features = ['temperature', 'mol_weight', 'complexity', 'covalent_units', 'H_acceptors', 'H_donors', 'heavy_atoms']
 ads_col = ['adsorbent_name'] 
 sorb_col = ['adsorbates_name']
+continuous_features = ['temperature', 'mol_weight', 'complexity', 'covalent_units', 
+                       'H_acceptors', 'H_donors', 'heavy_atoms']
+
 
 # [GROUP DATASET BY EXPERIMENT]
 #==============================================================================

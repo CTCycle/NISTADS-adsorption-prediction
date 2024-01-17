@@ -21,6 +21,7 @@ if __name__ == '__main__':
 from modules.components.data_classes import PreProcessing
 from modules.components.training_classes import ModelTraining, RealTimeHistory, SCADSModel, ModelValidation
 import modules.global_variables as GlobVar
+import configurations as cnf
 
 # [LOAD ADSORPTION DATA FROM FILES]
 #==============================================================================
@@ -74,10 +75,10 @@ sorb_col = ['adsorbates_name']
 
 # generate list of series and reshape them
 #------------------------------------------------------------------------------ 
-train_pressures = np.reshape([[float(x) for x in seq.split(' ')] for seq in train_X['pressure_in_Pascal'].to_list()], (-1, GlobVar.pad_length))
-train_uptakes = np.reshape([[float(x) for x in seq.split(' ')] for seq in train_Y['uptake_in_mol/g'].to_list()], (-1, GlobVar.pad_length))
-test_pressures = np.reshape([[float(x) for x in seq.split(' ')] for seq in test_X['pressure_in_Pascal'].to_list()], (-1, GlobVar.pad_length))
-test_uptakes = np.reshape([[float(x) for x in seq.split(' ')] for seq in test_Y['uptake_in_mol/g'].to_list()], (-1, GlobVar.pad_length))
+train_pressures = np.reshape([[float(x) for x in seq.split(' ')] for seq in train_X['pressure_in_Pascal'].to_list()], (-1, cnf.pad_length))
+train_uptakes = np.reshape([[float(x) for x in seq.split(' ')] for seq in train_Y['uptake_in_mol/g'].to_list()], (-1, cnf.pad_length))
+test_pressures = np.reshape([[float(x) for x in seq.split(' ')] for seq in test_X['pressure_in_Pascal'].to_list()], (-1, cnf.pad_length))
+test_uptakes = np.reshape([[float(x) for x in seq.split(' ')] for seq in test_Y['uptake_in_mol/g'].to_list()], (-1, cnf.pad_length))
 
 # prepare inputs 
 #------------------------------------------------------------------------------
@@ -112,20 +113,20 @@ Model training
 # generate model save folder
 #------------------------------------------------------------------------------
 preprocessor = PreProcessing()
-trainworker = ModelTraining(device = GlobVar.training_device, seed=GlobVar.seed) 
+trainworker = ModelTraining(device=cnf.training_device, seed=cnf.seed) 
 model_savepath = preprocessor.model_savefolder(GlobVar.model_path, 'SCADS')
 
 # save model parameters in txt files
 #------------------------------------------------------------------------------
-parameters = {'Number of samples' : GlobVar.num_samples,
+parameters = {'Number of samples' : cnf.num_samples,
               'Train samples:' : train_X.shape[0],
               'Test samples:' : test_X.shape[0],
               'Padding' : 'Yes',
-              'Pad sequence length' : GlobVar.pad_length,
-              'Pad sequence value' : GlobVar.pad_value,
-              'Batch size' : GlobVar.batch_size,
-              'Learning rate' : GlobVar.learning_rate,
-              'Epochs' : GlobVar.epochs}
+              'Pad sequence length' : cnf.pad_length,
+              'Pad sequence value' : cnf.pad_value,
+              'Batch size' : cnf.batch_size,
+              'Learning rate' : cnf.learning_rate,
+              'Epochs' : cnf.epochs}
 
 trainworker.model_parameters(parameters, model_savepath)
 
@@ -135,9 +136,9 @@ trainworker.model_parameters(parameters, model_savepath)
 unique_adsorbents = len(adsorbent_encoder.categories_[0])
 unique_sorbates = len(sorbates_encoder.categories_[0])
 num_features = len(continuous_features)     
-SCADS_frame = SCADSModel(GlobVar.learning_rate, num_features, GlobVar.pad_length, 
-                         GlobVar.pad_value, unique_adsorbents, unique_sorbates, 
-                         GlobVar.embedding_dims, XLA_acceleration=GlobVar.XLA_acceleration)
+SCADS_frame = SCADSModel(cnf.learning_rate, num_features, cnf.pad_length, 
+                         cnf.pad_value, unique_adsorbents, unique_sorbates, 
+                         cnf.embedding_dims, XLA_acceleration=cnf.XLA_acceleration)
 
 # build model
 #------------------------------------------------------------------------------
@@ -162,20 +163,19 @@ RTH_callback = RealTimeHistory(model_savepath, validation=True)
 
 # training loop and model saving at end
 #------------------------------------------------------------------------------
-print(f'''Start model training for {GlobVar.epochs} epochs and batch size of {GlobVar.batch_size}
+print(f'''Start model training for {cnf.epochs} epochs and batch size of {cnf.batch_size}
        ''')
-if GlobVar.use_tensorboard == True:
+if cnf.use_tensorboard == True:
     log_path = os.path.join(model_savepath, 'tensorboard')
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_path, histogram_freq=1)
     training = model.fit(train_inputs, train_uptakes, validation_data=(test_inputs, test_uptakes),
-                        epochs = GlobVar.epochs, batch_size=GlobVar.batch_size, 
+                        epochs = cnf.epochs, batch_size=cnf.batch_size, 
                         callbacks = [RTH_callback, tensorboard_callback],
                         workers = 6, use_multiprocessing=True)
 else:
     training = model.fit(train_inputs, train_uptakes, validation_data=(test_inputs, test_uptakes),
-                        epochs = GlobVar.epochs, batch_size=GlobVar.batch_size, 
-                        callbacks = [RTH_callback],
-                        workers = 6, use_multiprocessing=True)
+                        epochs=cnf.epochs, batch_size=cnf.batch_size, 
+                        callbacks = [RTH_callback], workers = 6, use_multiprocessing=True)
 
 model.save(model_savepath)
         
@@ -214,13 +214,13 @@ absolute_uptakes = []
 absolute_predictions = []
 
 for series in val_pressures:
-    true_length = len([x for x in series if x != GlobVar.pad_value])
+    true_length = len([x for x in series if x != cnf.pad_value])
     sliced_series = series[:true_length]
     reverse_series = [pressure_normalizer.inverse_transform(np.array(x).reshape(-1, 1)).flatten().tolist() for x in sliced_series]
     absolute_pressures.append(reverse_series)
 
 for series in val_uptakes:
-    true_length = len([x for x in series if x != GlobVar.pad_value])
+    true_length = len([x for x in series if x != cnf.pad_value])
     sliced_series = series[:true_length]
     reverse_series = [uptake_normalizer.inverse_transform(np.array(x).reshape(-1, 1)).flatten().tolist() for x in sliced_series]
     absolute_uptakes.append(reverse_series)

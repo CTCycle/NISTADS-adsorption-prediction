@@ -1,11 +1,9 @@
 import os
-import math
 import pandas as pd
 import numpy as np
 from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
-from scipy.optimize import curve_fit
 from tensorflow.keras.preprocessing.sequence import pad_sequences 
 from tqdm import tqdm
 tqdm.pandas()
@@ -28,7 +26,7 @@ class UserOperations:
     """
     
     # print custom menu on console and allows selecting an option
-    #==========================================================================
+    #--------------------------------------------------------------------------
     def menu_selection(self, menu):        
         
         """        
@@ -67,7 +65,7 @@ class UserOperations:
 
 # [DATA PREPROCESSING]
 #==============================================================================
-#==============================================================================
+# preprocess adsorption data
 #==============================================================================
 class PreProcessing:
     
@@ -85,7 +83,7 @@ class PreProcessing:
 
     """  
 
-    #==========================================================================
+    #--------------------------------------------------------------------------
     def pressure_converter(self, type, original_P):
 
         '''
@@ -107,7 +105,7 @@ class PreProcessing:
                 
         return P_value 
 
-    #==========================================================================
+    #--------------------------------------------------------------------------
     def uptake_converter(self, q_unit, q_val, mol_weight):
 
         '''
@@ -144,7 +142,7 @@ class PreProcessing:
                 
         return Q_value        
         
-    #==========================================================================
+    #--------------------------------------------------------------------------
     def properties_assigner(self, df_isotherms, df_adsorbates):
 
         df_properties = df_adsorbates[['name', 'complexity', 'atoms', 'mol_weight', 'covalent_units', 'H_acceptors', 'H_donors', 'heavy_atoms']]
@@ -157,7 +155,7 @@ class PreProcessing:
         return df_adsorption    
     
     # preprocessing model for tabular data using Keras pipeline    
-    #==========================================================================    
+    #--------------------------------------------------------------------------  
     def series_preprocessing(self, series, str_output=False, padding=True, normalization=True,
                              upper=None, pad_value=20, pad_length=10):
 
@@ -190,7 +188,7 @@ class PreProcessing:
 
         return pp_seq        
         
-    #==========================================================================
+    #--------------------------------------------------------------------------
     def model_savefolder(self, path, model_name):
 
         '''
@@ -212,65 +210,7 @@ class PreProcessing:
         if not os.path.exists(model_savepath):
             os.mkdir(model_savepath)               
             
-        return model_savepath  
-
-      
-    
-
-# ...
-#==============================================================================
-#==============================================================================
-#==============================================================================
-class AdsorptionModels:
-
-    def __init__(self):        
-        self.lower_bounds = [0, 0]  
-        self.upper_bounds = [1, 10000] 
-        self.bounds = (self.lower_bounds, self.upper_bounds)    
-    
-    #==========================================================================
-    def Langmuir_model(self, P, k, qsat):        
-        kP = P * k
-        qe = qsat * (kP/(1 + kP))
-        
-        return qe
-    
-   
-    #==========================================================================
-    def Sips_model(self, P, k, N, qsat):        
-        kP = (P * k)**N
-        qe = qsat * (kP/(1 + kP)**N)
-        
-        return qe
-    
-
-    #==========================================================================
-    def adsmodel_fitter(self, col_x, col_y, model, separator):        
-
-        array_x = np.array([float(x) for x in col_x.split(separator)])
-        array_y = np.array([float(y) for y in col_y.split(separator)])
-        max_Y = array_y.max()       
-
-        self.models = {'Langmuir' : [self.Langmuir_model, [0.000001, 10], ([0, 0], [10, 1000])]}
-        parameters = {}        
-        for name, vals in self.models.items():
-            model = vals[0]
-            p0_values = vals[1]
-            bounds = vals[2]
-            try:
-                popt, pcov = curve_fit(model, array_x, array_y, sigma=None, check_finite=True,
-                                   p0 = p0_values, bounds=bounds, full_output=False, maxfev=200000)                
-                self.param_per_model = {name : popt}
-                parameters.update(self.param_per_model)   
-            except:
-                self.param_per_model = {name : ('NA', 'NA')}
-                parameters.update(self.param_per_model)
-
-        k_Langmuir, qsat_Langmuir = parameters['Langmuir']              
-
-        return k_Langmuir, qsat_Langmuir             
-
-    
+        return model_savepath      
 
 # define class for correlations calculations
 #==============================================================================
@@ -397,22 +337,6 @@ class MultiCorrelator:
         
         return self.strong_pairs, self.weak_pairs, self.zero_pairs
     
-# define the class for inspection of the input folder and generation of files list.
-#==============================================================================
-#==============================================================================
-#==============================================================================
-class DataStorage: 
-
-    #==========================================================================
-    def JSON_serializer(self, object, filename, path, mode='SAVE'):
-
-        if mode == 'SAVE':
-            object_json = object.to_json()          
-            json_path = os.path.join(path, f'{filename}.json')
-            with open(json_path, 'w', encoding = 'utf-8') as f:
-                f.write(object_json)
-        elif mode == 'LOAD':
-            pass
 
 
 

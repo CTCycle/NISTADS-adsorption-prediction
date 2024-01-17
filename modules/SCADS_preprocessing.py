@@ -8,7 +8,6 @@ from sklearn.preprocessing import MinMaxScaler, OrdinalEncoder
 from tqdm import tqdm
 tqdm.pandas()
 
-
 # set warnings
 #------------------------------------------------------------------------------
 import warnings
@@ -23,6 +22,7 @@ if __name__ == '__main__':
 #------------------------------------------------------------------------------
 from modules.components.data_classes import PreProcessing
 import modules.global_variables as GlobVar
+import configurations as cnf
 
 # [LOAD ADSORPTION DATA FROM FILES]
 #==============================================================================
@@ -35,15 +35,6 @@ df_adsorbates = pd.read_csv(file_loc, sep = ';', encoding = 'utf-8')
 file_loc = os.path.join(GlobVar.data_path, 'adsorbents_dataset.csv') 
 df_adsorbents = pd.read_csv(file_loc, sep = ';', encoding = 'utf-8')
 
-print(f'''
--------------------------------------------------------------------------------
-NIST Adsorption Dataset Preprocessing
--------------------------------------------------------------------------------
-This module analyses the NIST adsorption dataset obtained by extracting data from 
-NIST database online. The procedure will be separately performed on the single 
-component isotherm dataset
-''')
-
 # [FILTER DATASET]
 #==============================================================================
 # Retrieve chemical properties for adsorbates and adsorbents and add new columns to
@@ -53,7 +44,7 @@ print(f'''STEP 1 - Selecting specific units and convert uptakes and pressures
       ''')
 preprocessor = PreProcessing()
 
-# add molecular properties
+# add molecular properties based on PUG CHEM API data
 #------------------------------------------------------------------------------ 
 df_adsorption = preprocessor.properties_assigner(df_adsorption, df_adsorbates)
 
@@ -74,8 +65,8 @@ print()
 # negative values of temperature, pressure and uptake
 #------------------------------------------------------------------------------ 
 df_adsorption_ML = df_adsorption_unit[df_adsorption_unit['temperature'].astype(int) > 0]
-df_adsorption_ML = df_adsorption_ML[df_adsorption_ML['pressure_in_Pascal'].astype(float).between(0.0, GlobVar.pressure_ceil)]
-df_adsorption_ML = df_adsorption_ML[df_adsorption_ML['uptake_in_mol/g'].astype(float).between(0.0, GlobVar.uptake_ceil)]
+df_adsorption_ML = df_adsorption_ML[df_adsorption_ML['pressure_in_Pascal'].astype(float).between(0.0, cnf.pressure_ceil)]
+df_adsorption_ML = df_adsorption_ML[df_adsorption_ML['uptake_in_mol/g'].astype(float).between(0.0, cnf.uptake_ceil)]
 
 # [GROUP DATASET BY EXPERIMENT]
 #==============================================================================
@@ -99,13 +90,10 @@ df_adsorption_grouped = df_adsorption_ML.groupby('filename', as_index = False).a
 df_adsorption_grouped.drop(columns='filename', axis = 1, inplace=True)
 total_num_exp = df_adsorption_grouped.shape[0]
 
-# remove series of pressure/uptake with less than X points
+# remove series of pressure/uptake with less than X points, and select data fraction for preprocessing
 #------------------------------------------------------------------------------ 
-df_adsorption_grouped = df_adsorption_grouped[df_adsorption_grouped['pressure_in_Pascal'].apply(lambda x: len(x)) >= GlobVar.min_points]
-
-# select data fraction for preprocessing
-#------------------------------------------------------------------------------
-df_adsorption_grouped = df_adsorption_grouped.sample(n = GlobVar.num_samples, random_state=30)
+df_adsorption_grouped = df_adsorption_grouped[df_adsorption_grouped['pressure_in_Pascal'].apply(lambda x: len(x)) >= cnf.min_points]
+df_adsorption_grouped = df_adsorption_grouped.sample(n=cnf.num_samples, random_state=30)
 
 # [SPLIT DATASET INTO TRAIN, VALIDATION AND TEST]
 #==============================================================================
@@ -121,16 +109,17 @@ dataset_Y = df_adsorption_grouped['uptake_in_mol/g']
 
 # split train and test dataset
 #------------------------------------------------------------------------------ 
-train_X, test_X, train_Y, test_Y = train_test_split(dataset_X, dataset_Y, test_size = GlobVar.test_size, 
-                                                    random_state = GlobVar.seed, shuffle = True, stratify = None) 
-train_Y = train_Y.to_frame()
-test_Y = test_Y.to_frame()
+train_X, test_X, train_Y, test_Y = train_test_split(dataset_X, dataset_Y, test_size = cnf.test_size, 
+                                                    random_state=cnf.seed, shuffle = True, stratify = None) 
+
 
 # identify columns
 #------------------------------------------------------------------------------ 
-continuous_features = ['temperature', 'mol_weight', 'complexity', 'covalent_units', 'H_acceptors', 'H_donors', 'heavy_atoms']
 ads_col = ['adsorbent_name'] 
 sorb_col = ['adsorbates_name']
+continuous_features = ['temperature', 'mol_weight', 'complexity', 'covalent_units', 
+                       'H_acceptors', 'H_donors', 'heavy_atoms']
+
 
 # [NORMALIZE VARIABLES]
 #==============================================================================
@@ -142,6 +131,8 @@ print(f'''STEP 3 - Normalizing variables
 
 # enforce float type for the continuous features columns
 #------------------------------------------------------------------------------ 
+train_Y = train_Y.to_frame()
+test_Y = test_Y.to_frame()
 train_X[continuous_features] = train_X[continuous_features].astype(float)        
 test_X[continuous_features] = test_X[continuous_features].astype(float)
 
@@ -177,40 +168,37 @@ unique_sorbates = train_X['adsorbates_name'].nunique() + 1
 
 # define the encoders
 #------------------------------------------------------------------------------ 
-adsorbent_encoder = OrdinalEncoder(categories = 'auto', handle_unknown = 'use_encoded_value', unknown_value=unique_adsorbents - 1)
-sorbates_encoder = OrdinalEncoder(categories = 'auto', handle_unknown = 'use_encoded_value',  unknown_value=unique_sorbates - 1)
-
-# fit encoder on the train sets
-#------------------------------------------------------------------------------        
-encoded_adsorbents = adsorbent_encoder.fit(train_X[['adsorbent_name']])
-encoded_sorbates = sorbates_encoder.fit(train_X[['adsorbates_name']])
+adsorbent_encoder = OrdinalEncoder(categories='auto', handle_unknown='use_encoded_value', unknown_value=unique_adsorbents - 1)
+sorbates_encoder = OrdinalEncoder(categories='auto', handle_unknown='use_encoded_value',  unknown_value=unique_sorbates - 1)
 
 # apply encoding on the adsorbent and sorbates columns
 #------------------------------------------------------------------------------ 
-train_X[['adsorbent_name']] = adsorbent_encoder.transform(train_X[['adsorbent_name']])
-train_X[['adsorbates_name']] = sorbates_encoder.transform(train_X[['adsorbates_name']])
+train_X[['adsorbent_name']] = adsorbent_encoder.fit_transform(train_X[['adsorbent_name']])
+train_X[['adsorbates_name']] = sorbates_encoder.fit_transform(train_X[['adsorbates_name']])
 test_X[['adsorbent_name']] = adsorbent_encoder.transform(test_X[['adsorbent_name']])
 test_X[['adsorbates_name']] = sorbates_encoder.transform(test_X[['adsorbates_name']])
 
 # apply encoding on the adsorbent and sorbates columns
 #------------------------------------------------------------------------------ 
-train_X['pressure_in_Pascal'] = train_X['pressure_in_Pascal'].apply(lambda x : preprocessor.series_preprocessing(x, pad_length=GlobVar.pad_length, pad_value=GlobVar.pad_value, normalization=False, str_output=True))
-test_X['pressure_in_Pascal'] = test_X['pressure_in_Pascal'].apply(lambda x : preprocessor.series_preprocessing(x, pad_length=GlobVar.pad_length, pad_value=GlobVar.pad_value, normalization=False, str_output=True))
-train_Y['uptake_in_mol/g'] = train_Y['uptake_in_mol/g'].apply(lambda x : preprocessor.series_preprocessing(x, pad_length=GlobVar.pad_length, pad_value=GlobVar.pad_value, normalization=False, str_output=True))
-test_Y['uptake_in_mol/g'] = test_Y['uptake_in_mol/g'].apply(lambda x : preprocessor.series_preprocessing(x, pad_length=GlobVar.pad_length, pad_value=GlobVar.pad_value, normalization=False, str_output=True))
+train_X['pressure_in_Pascal'] = train_X['pressure_in_Pascal'].apply(lambda x : preprocessor.series_preprocessing(x, pad_length=cnf.pad_length, pad_value=cnf.pad_value, normalization=False, str_output=True))
+test_X['pressure_in_Pascal'] = test_X['pressure_in_Pascal'].apply(lambda x : preprocessor.series_preprocessing(x, pad_length=cnf.pad_length, pad_value=cnf.pad_value, normalization=False, str_output=True))
+train_Y['uptake_in_mol/g'] = train_Y['uptake_in_mol/g'].apply(lambda x : preprocessor.series_preprocessing(x, pad_length=cnf.pad_length, pad_value=cnf.pad_value, normalization=False, str_output=True))
+test_Y['uptake_in_mol/g'] = test_Y['uptake_in_mol/g'].apply(lambda x : preprocessor.series_preprocessing(x, pad_length=cnf.pad_length, pad_value=cnf.pad_value, normalization=False, str_output=True))
 
 # [PRINT REPORT]
 #==============================================================================
 # encodes strings as ordinal indexes 
 #==============================================================================
 print(f'''
+-------------------------------------------------------------------------------   
+PREPROCESSING REPORT
 -------------------------------------------------------------------------------
 Number of experiments before filtering: {df_adsorption.groupby('filename').ngroup().nunique()}
 Number of experiments upon filtering:   {df_adsorption_ML.groupby('filename').ngroup().nunique()}
 Number of experiments removed:          {df_adsorption.groupby('filename').ngroup().nunique() - df_adsorption_ML.groupby('filename').ngroup().nunique()}
 -------------------------------------------------------------------------------
 Total number of experiments:             {total_num_exp}
-Select number of experiments:            {GlobVar.num_samples}
+Select number of experiments:            {cnf.num_samples}
 Total number of experiments (train set): {train_X.shape[0]}
 Total number of experiments (test set):  {test_X.shape[0]}
 -------------------------------------------------------------------------------
@@ -220,23 +208,19 @@ Total number of experiments (test set):  {test_X.shape[0]}
 #==============================================================================
 # Save the trained preprocessing systems (normalizer and encoders) for further use 
 #==============================================================================
-pp_path = os.path.join(GlobVar.SCADS_path, r'preprocessing')
-if not os.path.exists(pp_path):
-    os.mkdir(pp_path)
-
-normalizer_path = os.path.join(pp_path, 'features_normalizer.pkl')
+normalizer_path = os.path.join(GlobVar.SCADS_path, 'features_normalizer.pkl')
 with open(normalizer_path, 'wb') as file:
     pickle.dump(features_normalizer, file)
-normalizer_path = os.path.join(pp_path, 'pressure_normalizer.pkl')
+normalizer_path = os.path.join(GlobVar.SCADS_path, 'pressure_normalizer.pkl')
 with open(normalizer_path, 'wb') as file:
     pickle.dump(pressure_normalizer, file)
-normalizer_path = os.path.join(pp_path, 'uptake_normalizer.pkl')
+normalizer_path = os.path.join(GlobVar.SCADS_path, 'uptake_normalizer.pkl')
 with open(normalizer_path, 'wb') as file:
     pickle.dump(uptake_normalizer, file)
-encoder_path = os.path.join(pp_path, 'adsorbent_encoder.pkl')
+encoder_path = os.path.join(GlobVar.SCADS_path, 'adsorbent_encoder.pkl')
 with open(encoder_path, 'wb') as file:
     pickle.dump(adsorbent_encoder, file) 
-encoder_path = os.path.join(pp_path, 'sorbates_encoder.pkl')
+encoder_path = os.path.join(GlobVar.SCADS_path, 'sorbates_encoder.pkl')
 with open(encoder_path, 'wb') as file:
     pickle.dump(sorbates_encoder, file)     
 

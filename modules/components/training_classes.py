@@ -1,28 +1,28 @@
 import os
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow import keras
 from keras.models import Model
-from keras import layers 
-from tensorflow.keras.preprocessing.sequence import pad_sequences  
+from keras.layers import Input, Embedding, Dropout, Dense, Conv1D, LayerNormalization, BatchNormalization, Add
+
                    
+
 # [CALLBACK FOR REAL TIME TRAINING MONITORING]
 #==============================================================================
 #==============================================================================
 #==============================================================================
 class RealTimeHistory(keras.callbacks.Callback):
     
-    """ 
+    ''' 
     A class including the callback to show a real time plot of the training history. 
       
     Methods:
         
     __init__(plot_path): initializes the class with the plot savepath       
     
-    """   
+    ''' 
     def __init__(self, plot_path, validation=True):        
         super().__init__()
         self.plot_path = plot_path
@@ -34,140 +34,280 @@ class RealTimeHistory(keras.callbacks.Callback):
         self.validation = validation            
     #--------------------------------------------------------------------------
     def on_epoch_end(self, epoch, logs = {}):
-        if epoch % 2 == 0:                    
+        if epoch % 10 == 0:                    
             self.epochs.append(epoch)
             self.loss_hist.append(logs[list(logs.keys())[0]])
             self.metric_hist.append(logs[list(logs.keys())[1]])
             if self.validation==True:
                 self.loss_val_hist.append(logs[list(logs.keys())[2]])            
                 self.metric_val_hist.append(logs[list(logs.keys())[3]])
-        if epoch % 50 == 0:            
+        if epoch % 40 == 0:            
             #------------------------------------------------------------------
             fig_path = os.path.join(self.plot_path, 'training_history.jpeg')
             plt.subplot(2, 1, 1)
-            plt.plot(self.epochs, self.loss_hist, label = 'training loss')
+            plt.plot(self.epochs, self.loss_hist, label='training loss')
             if self.validation==True:
-                plt.plot(self.epochs, self.loss_val_hist, label = 'validation loss')
+                plt.plot(self.epochs, self.loss_val_hist, label='validation loss')
                 plt.legend(loc = 'best', fontsize = 8)
             plt.title('Loss plot')
             plt.ylabel('MSE')
             plt.xlabel('epoch')
             plt.subplot(2, 1, 2)
-            plt.plot(self.epochs, self.metric_hist, label = 'train metrics') 
+            plt.plot(self.epochs, self.metric_hist, label='train metrics') 
             if self.validation==True: 
-                plt.plot(self.epochs, self.metric_val_hist, label = 'validation metrics') 
+                plt.plot(self.epochs, self.metric_val_hist, label='validation metrics') 
                 plt.legend(loc = 'best', fontsize = 8)
             plt.title('metrics plot')
             plt.ylabel('MAE')
             plt.xlabel('epoch')       
             plt.tight_layout()
             plt.savefig(fig_path, bbox_inches = 'tight', format = 'jpeg', dpi = 300)
-            plt.show(block = False)
-            plt.close()      
+            plt.close()     
 
-# [CUSTOM DATA GENERATOR FOR TRAINING]
+# [PARAMETRIZER BLOCK]
 #==============================================================================
+# Parametrizer custom layer
 #==============================================================================
-#==============================================================================
-class DataGenerator(keras.utils.Sequence):
+class Parametrizer(keras.Layer):
+    def __init__(self):
+        super(Parametrizer, self).__init__()        
+        self.dense1 = Dense(128, activation = 'relu', kernel_initializer='he_uniform')              
+        self.dense2 = Dense(256, activation = 'relu', kernel_initializer='he_uniform')              
+        self.dense3 = Dense(512, activation = 'relu', kernel_initializer='he_uniform')
+        self.dense4 = Dense(512, activation='relu', kernel_initializer='he_uniform')          
+        self.layernorm = LayerNormalization()                 
 
-    def __init__(self, dataframe_X, dataframe_Y, pad_length, pad_value, batch_size, shuffle=True):        
-        self.dataframe_X = dataframe_X  
-        self.dataframe_Y = dataframe_Y       
-        self.num_of_samples = dataframe_X.shape[0]
-        self.ads_col = 'adsorbent_name'
-        self.sorb_col = 'adsorbates_name'
-        self.P_col = 'pressure_in_Pascal'
-        self.Y_col = 'uptake_in_mol/g'
-        self.feat_cols = ['temperature', 'mol_weight', 'complexity', 
-                          'covalent_units', 'H_acceptors', 'H_donors', 
-                          'heavy_atoms']       
+    # implement parametrizer through call method  
+    #--------------------------------------------------------------------------
+    def call(self, inputs):
+        layer = self.dense1(inputs)       
+        layer = self.dense2(layer)       
+        layer = self.dense3(layer)
+        output = self.layernorm(inputs + layer)
         
-        self.batch_size = batch_size  
-        self.batch_index = 0 
-        self.pad_length = pad_length 
-        self.pad_value = pad_value            
-        self.shuffle = shuffle
-        self.on_epoch_end()       
-
-    # define length of the custom generator      
-    #--------------------------------------------------------------------------
-    def __len__(self):
-        return int(np.ceil(self.num_of_samples/self.batch_size))
+        return output
     
-    # define method to get X and Y data through custom functions, and subsequently
-    # create a batch of data converted to tensors
+    # serialize layer for saving  
     #--------------------------------------------------------------------------
-    def __getitem__(self, idx): 
-        features_batch = self.dataframe_X[self.feat_cols].iloc[idx * self.batch_size:(idx + 1) * self.batch_size].values        
-        adsorbent_batch = self.dataframe_X[self.ads_col][idx * self.batch_size:(idx + 1) * self.batch_size]
-        sorbates_batch = self.dataframe_X[self.sorb_col][idx * self.batch_size:(idx + 1) * self.batch_size]
-        pressure_batch = self.dataframe_X[self.P_col][idx * self.batch_size:(idx + 1) * self.batch_size]
-        uptake_batch = self.dataframe_Y[self.Y_col][idx * self.batch_size:(idx + 1) * self.batch_size]        
-        x1_batch = [self.__features_generation(feat) for feat in features_batch]
-        x2_batch = [self.__token_generation(token) for token in adsorbent_batch]
-        x3_batch = [self.__token_generation(token) for token in sorbates_batch]
-        x4_batch = [self.__series_generation(series) for series in pressure_batch] 
-        y_batch = [self.__series_generation(series) for series in uptake_batch]
-        X1_tensor = tf.convert_to_tensor(x1_batch)
-        X2_tensor = tf.convert_to_tensor(x2_batch)
-        X3_tensor = tf.convert_to_tensor(x3_batch)
-        X4_tensor = tf.convert_to_tensor(x4_batch)
-        Y_tensor = tf.convert_to_tensor(y_batch)
+    def get_config(self):
+        config = super(Parametrizer, self).get_config()
+        config.update({})
+        return config
 
-        return (X1_tensor, X2_tensor, X3_tensor, X4_tensor), Y_tensor
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+        
+
+# [BATCH NORMALIZED FFW]
+#==============================================================================
+# Custom layer
+#============================================================================== 
+class BNFeedForward(keras.Layer):
+    def __init__(self, units, seed=42, dropout=0.1):
+        super(BNFeedForward, self).__init__()
+        self.units = units   
+        self.seed = seed  
+        self.dropout = dropout
+        self.BN = BatchNormalization(axis=-1, epsilon=0.001)  
+        self.drop = Dropout(rate=dropout, seed=seed)      
+        self.dense = Dense(units, activation='relu', kernel_initializer='he_uniform')
+        
+    # implement transformer encoder through call method  
+    #--------------------------------------------------------------------------
+    def call(self, inputs, training):        
+        layer = self.dense(inputs)
+        layer = self.BN(layer)       
+        output = self.drop(layer, training=training)                
+        
+        return output
     
-    # define method to perform data operations on epoch end
+    # serialize layer for saving  
     #--------------------------------------------------------------------------
-    def on_epoch_end(self):        
-        self.indexes = np.arange(self.num_of_samples)
-        if self.shuffle == True:
-            np.random.shuffle(self.indexes)
+    def get_config(self):
+        config = super(BNFeedForward, self).get_config()
+        config.update({'units': self.units,
+                       'seed': self.seed,
+                       'dropout': self.dropout})
+        return config
 
-    # define method to load images and perform data augmentation    
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)      
+
+# [GUEST-HOST ENCODER]
+#==============================================================================
+# Custom layer
+#============================================================================== 
+class GHEncoder(keras.Layer):
+    def __init__(self, gvocab_size, hvocab_size, embedding_dims, seed=42, dropout=0.1):
+        super(GHEncoder, self).__init__()
+        self.gvocab_size = gvocab_size
+        self.hvocab_size = hvocab_size
+        self.embedding_dims = embedding_dims
+        self.seed = seed  
+        self.dropout = dropout        
+        self.embedding_G = Embedding(input_dim=gvocab_size, output_dim=self.embedding_dims)
+        self.embedding_H = Embedding(input_dim=hvocab_size, output_dim=self.embedding_dims)              
+        self.dense1 = Dense(256, activation = 'relu', kernel_initializer='he_uniform')    
+        self.dense2 = Dense(512, activation = 'relu',kernel_initializer='he_uniform') 
+        self.resdense_G = Dense(512, activation = 'relu', kernel_initializer='he_uniform')    
+        self.resdense_H = Dense(512, activation = 'relu',kernel_initializer='he_uniform')
+        self.layernorm1 = LayerNormalization() 
+        self.layernorm2 = LayerNormalization()         
+        self.bnffn = BNFeedForward(1024, self.seed, dropout)             
+        
+        
+    # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
-    def __features_generation(self, features):
-        features = np.array(features, dtype=np.float32)         
-
-        return features   
-
-    # define method to load images and perform data augmentation    
-    #--------------------------------------------------------------------------
-    def __series_generation(self, sequence):
-        pp_seq = sequence.replace('[', '').replace(']', '')
-        series = [float(x) for x in pp_seq.split(', ')]
-        max_val = max([float(g) for g in series])
-        if max_val == 0.0:
-            max_val = 10e-14
-        norm_series = [x/max_val for x in series]
-        padded_series = pad_sequences([[norm_series]], maxlen = self.pad_length, value = self.pad_value, 
-                                      dtype = 'float32', padding = 'post')
-
-        padded_series = np.array(padded_series[0], dtype=np.float32)
-
-        return padded_series   
+    def call(self, guests, hosts, training):        
+        G_emb = self.embedding_G(guests)
+        H_emb = self.embedding_G(hosts)
+        layernorm1 = self.layernorm1(G_emb + H_emb)
+        layer = self.dense1(layernorm1)
+        layer = self.dense2(layer)   
+        reslayer_G = self.resdense_G(G_emb)  
+        reslayer_H = self.resdense_H(H_emb)
+        layernorm2 = self.layernorm1(reslayer_G + reslayer_H)
+        residual = layer + layernorm2
+        output = self.bnffn(residual, training)                      
+        
+        return output
     
-    # define method to load labels    
+    # serialize layer for saving  
     #--------------------------------------------------------------------------
-    def __token_generation(self, token):
-        token = np.array(token, dtype=np.float32)        
+    def get_config(self):
+        config = super(GHEncoder, self).get_config()
+        config.update({'gvocab_size': self.gvocab_size,
+                       'hvocab_size': self.hvocab_size,
+                       'embedding_dims': self.embedding_dims,
+                       'seed': self.seed,
+                       'dropout': self.dropout})
+        return config
 
-        return token
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config) 
     
-    # define method to call the elements of the generator    
+# [GUEST-HOST ENCODER]
+#==============================================================================
+# Custom layer
+#============================================================================== 
+class PressureEncoder(keras.Layer):
+    def __init__(self, gvocab_size, hvocab_size, embedding_dims, seed=42, dropout=0.1):
+        super(PressureEncoder, self).__init__()
+        self.gvocab_size = gvocab_size
+        self.hvocab_size = hvocab_size
+        self.embedding_dims = embedding_dims
+        self.seed = seed  
+        self.dropout = dropout        
+        self.embedding_G = Embedding(input_dim=gvocab_size, output_dim=self.embedding_dims)
+        self.embedding_H = Embedding(input_dim=hvocab_size, output_dim=self.embedding_dims)              
+        self.dense1 = Dense(256, activation = 'relu', kernel_initializer='he_uniform')    
+        self.dense2 = Dense(512, activation = 'relu',kernel_initializer='he_uniform') 
+        self.resdense_G = Dense(512, activation = 'relu', kernel_initializer='he_uniform')    
+        self.resdense_H = Dense(512, activation = 'relu',kernel_initializer='he_uniform')
+        self.layernorm1 = LayerNormalization() 
+        self.layernorm2 = LayerNormalization()         
+        self.bnffn = BNFeedForward(1024, self.seed, dropout)             
+        
+        
+    # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
-    def next(self):
-        next_index = (self.batch_index + 1) % self.__len__()
-        self.batch_index = next_index
+    def call(self, guests, hosts, training):        
+        G_emb = self.embedding_G(guests)
+        H_emb = self.embedding_G(hosts)
+        layernorm1 = self.layernorm1(G_emb + H_emb)
+        layer = self.dense1(layernorm1)
+        layer = self.dense2(layer)   
+        reslayer_G = self.resdense_G(G_emb)  
+        reslayer_H = self.resdense_H(H_emb)
+        layernorm2 = self.layernorm1(reslayer_G + reslayer_H)
+        residual = layer + layernorm2
+        output = self.bnffn(residual, training)                      
+        
+        return output
+    
+    # serialize layer for saving  
+    #--------------------------------------------------------------------------
+    def get_config(self):
+        config = super(GHEncoder, self).get_config()
+        config.update({'gvocab_size': self.gvocab_size,
+                       'hvocab_size': self.hvocab_size,
+                       'embedding_dims': self.embedding_dims,
+                       'seed': self.seed,
+                       'dropout': self.dropout})
+        return config
 
-        return self.__getitem__(next_index)
-  
-             
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config) 
+    
+# [COLOR CODE MODEL]
+#==============================================================================
+# collection of model and submodels
+#==============================================================================
+class SCADSModel:
+
+    def __init__(self, learning_rate, num_features, pad_length, pad_value, adsorbent_dims, 
+                 adsorbates_dims, embedding_dims, seed, XLA_acceleration=False):
+
+        self.learning_rate = learning_rate
+        self.num_features = num_features
+        self.pad_length = pad_length
+        self.pad_value = pad_value
+        self.adsorbent_dims = adsorbent_dims
+        self.adsorbates_dims = adsorbates_dims 
+        self.embedding_dims = embedding_dims
+        self.seed = seed
+        self.XLA_state = XLA_acceleration 
+
+        self.parametrizer = Parametrizer()
+        self.embedder = GHEncoder(adsorbates_dims, adsorbent_dims, embedding_dims, seed, dropout=0.2)
+
+        
+
+    # build model given the architecture
+    #--------------------------------------------------------------------------
+    def build(self):
+        
+        
+        continuous_inputs = Input(shape = (self.num_features, ), name = 'continuous_input')
+        adsorbent_inputs = Input(shape = (1,), name = 'adsorbents_input')
+        adsorbate_inputs = Input(shape = (1,), name = 'sorbates_input')
+        pressure_inputs = Input(shape = (self.pad_length, ), name = 'pressure_input')
+        #----------------------------------------------------------------------
+        parameters = self.parametrizer(continuous_inputs)
+        GH_encoding = self.embedder(adsorbent_inputs, adsorbate_inputs)        
+        pressure_encoding = pressure_submodel(pressure_inputs) 
+        #----------------------------------------------------------------------       
+        embedding_concat = Concatenate()([adsorbent_block, adsorbate_block])                 
+        dense1 = Dense(1024, activation = 'relu')(embedding_concat)                 
+        dense2 = Dense(512, activation = 'relu')(dense1)       
+        dense3 = Dense(512, activation = 'relu')(dense2)       
+        model_concat = Concatenate()([dense3, features_block, pressure_block, pressure_inputs])        
+        dense4 = Dense(1024, activation = 'relu')(model_concat)                
+        dense5 = Dense(512, activation = 'relu')(dense4)                
+        dense6 = Dense(256, activation = 'relu')(dense5)
+        #----------------------------------------------------------------------        
+        output = Dense(self.pad_length, activation = 'relu')(dense6) 
+        
+
+        inputs = [continuous_inputs, adsorbent_inputs, adsorbate_inputs, pressure_inputs]    
+        model = Model(inputs = inputs, outputs = output, name = 'SCADS')       
+        opt = keras.optimizers.Adam(learning_rate=self.learning_rate)
+        loss = keras.losses.MeanSquaredError()
+        metrics = keras.metrics.MeanAbsoluteError()
+        model.compile(loss = loss, optimizer = opt, metrics = metrics, run_eagerly=False,
+                      jit_compile=self.XLA_state)            
+        
+        return model
+
 # Class for preprocessing tabular data prior to GAN training 
 #==============================================================================
 #==============================================================================
 #==============================================================================
-class SCADSModel:
+class REFERENCE:
 
     def __init__(self, learning_rate, num_features, pad_length, pad_value, adsorbent_dims, 
                  adsorbates_dims, embedding_dims, XLA_acceleration=False):
@@ -181,120 +321,92 @@ class SCADSModel:
         self.embedding_dims = embedding_dims
         self.XLA_state = XLA_acceleration
 
-    #--------------------------------------------------------------------------
+    
     def ContFeatModel(self):
 
-        input_layer = layers.Input(shape = (self.num_features, ), name = 'continuous_input')
-
-        dense1 = layers.Dense(128, activation = 'relu')(input_layer)
-        #----------------------------------------------------------------------        
-        dense2 = layers.Dense(256, activation = 'relu')(dense1)
-        #----------------------------------------------------------------------        
-        dense3 = layers.Dense(512, activation = 'relu')(dense2)
+        input_layer = Input(shape = (self.num_features, ), name = 'continuous_input')
         #----------------------------------------------------------------------
-        dense4 = layers.Dense(760, activation = 'relu')(dense3)
-        #----------------------------------------------------------------------       
-        output = layers.Dense(1024, activation = 'relu')(dense4)
+        dense1 = Dense(128, activation = 'relu')(input_layer)                
+        dense2 = Dense(256, activation = 'relu')(dense1)                
+        dense3 = Dense(512, activation = 'relu')(dense2)        
+        dense4 = Dense(760, activation = 'relu')(dense3) 
+        #----------------------------------------------------------------------              
+        output = Dense(1024, activation = 'relu')(dense4)
 
         submodel = Model(inputs = input_layer, outputs = output, name = 'CF_model')
 
         return submodel 
 
-    #--------------------------------------------------------------------------    
+       
     def EmbeddingModel(self, input_dims): 
    
-        embedding_inputs = layers.Input(shape = (1, ), name = 'embedded_input')
-
-        embedding = layers.Embedding(input_dim = input_dims, output_dim = self.embedding_dims)(embedding_inputs)
+        embedding_inputs = Input(shape = (1, ), name = 'embedded_input')
         #----------------------------------------------------------------------
-        flatten = layers.Flatten()(embedding)
+        embedding = Embedding(input_dim = input_dims, output_dim = self.embedding_dims)(embedding_inputs)        
+        flatten = Flatten()(embedding)        
+        dense1 = Dense(1024, activation = 'relu')(flatten)       
+        dense2 = Dense(512, activation = 'relu')(dense1)        
+        dense3 = Dense(512, activation = 'relu')(dense2)                    
+        dense4 = Dense(256, activation = 'relu')(dense3)                
+        output = Dense(256, activation = 'relu')(dense4)
         #----------------------------------------------------------------------
-        dense1 = layers.Dense(1024, activation = 'relu')(flatten)        
-        #----------------------------------------------------------------------
-        dense2 = layers.Dense(512, activation = 'relu')(dense1)
-        #----------------------------------------------------------------------
-        dense3 = layers.Dense(512, activation = 'relu')(dense2)   
-        #----------------------------------------------------------------------            
-        dense4 = layers.Dense(256, activation = 'relu')(dense3)
-        #----------------------------------------------------------------------        
-        output = layers.Dense(256, activation = 'relu')(dense4)
-
         submodel = Model(inputs = embedding_inputs, outputs = output)
 
         return submodel
     
-    #--------------------------------------------------------------------------
+   
     def PressureModel(self):       
 
-        pressure_inputs = layers.Input(shape = (self.pad_length, ), name = 'pressure_input')
-           
-        mask = layers.Masking(mask_value=self.pad_value)(pressure_inputs)
+        pressure_inputs = Input(shape = (self.pad_length, ), name = 'pressure_input')
+        #----------------------------------------------------------------------           
+        mask = Masking(mask_value=self.pad_value)(pressure_inputs)        
+        reshape = Reshape((-1, self.pad_length))(mask)                
+        conv1 = Conv1D(256, kernel_size = 6, padding='same', activation='relu')(reshape)       
+        pool1 = AveragePooling1D(pool_size = 2, strides=None, padding='same')(conv1)                
+        conv2 = Conv1D(512, kernel_size = 6, padding='same', activation='relu')(pool1)       
+        pool2 = AveragePooling1D(pool_size = 2, strides=None, padding='same')(conv2)        
+        conv3 = Conv1D(1024, kernel_size = 6, padding='same', activation='relu')(pool2)  
+        #----------------------------------------------------------------------     
+        flatten = Flatten()(conv3)        
+        dense1 = Dense(1024, activation = 'relu')(flatten)               
+        dense2 = Dense(512, activation = 'relu')(dense1)                        
+        dense3 = Dense(512, activation = 'relu')(dense2)                
+        dense4 = Dense(256, activation = 'relu')(dense3)         
+        output = Dense(256, activation = 'relu')(dense4)
         #----------------------------------------------------------------------
-        reshape = layers.Reshape((-1, self.pad_length))(mask)        
-        #----------------------------------------------------------------------
-        conv1 = layers.Conv1D(256, kernel_size = 6, padding='same', activation='relu')(reshape)        
-        #----------------------------------------------------------------------
-        pool1 = layers.AveragePooling1D(pool_size = 2, strides=None, padding='same')(conv1)
-        #----------------------------------------------------------------------        
-        conv2 = layers.Conv1D(512, kernel_size = 6, padding='same', activation='relu')(pool1)        
-        #----------------------------------------------------------------------
-        pool2 = layers.AveragePooling1D(pool_size = 2, strides=None, padding='same')(conv2)
-        #----------------------------------------------------------------------
-        conv3 = layers.Conv1D(1024, kernel_size = 6, padding='same', activation='relu')(pool2)        
-        #----------------------------------------------------------------------
-        flatten = layers.Flatten()(conv3)
-        #----------------------------------------------------------------------
-        dense1 = layers.Dense(1024, activation = 'relu')(flatten) 
-        #----------------------------------------------------------------------        
-        dense2 = layers.Dense(512, activation = 'relu')(dense1) 
-        #----------------------------------------------------------------------               
-        dense3 = layers.Dense(512, activation = 'relu')(dense2) 
-        #----------------------------------------------------------------------       
-        dense4 = layers.Dense(256, activation = 'relu')(dense3) 
-        #----------------------------------------------------------------------
-        output = layers.Dense(256, activation = 'relu')(dense4)
-
         submodel = Model(inputs = pressure_inputs, outputs = output, name = 'PS_submodel')
 
         return submodel    
     
-    #--------------------------------------------------------------------------
+    
     def SCADS(self):
 
         ContFeat_submodel = self.ContFeatModel()
         adsorbent_submodel = self.EmbeddingModel(self.adsorbent_dims)
         adsorbate_submodel = self.EmbeddingModel(self.adsorbates_dims)        
         pressure_submodel = self.PressureModel() 
-
-        continuous_inputs = layers.Input(shape = (self.num_features, ), name = 'continuous_input')
-        adsorbent_inputs = layers.Input(shape = (1, ), name = 'adsorbents_input')
-        adsorbate_inputs = layers.Input(shape = (1, ), name = 'sorbates_input')
-        pressure_inputs = layers.Input(shape = (self.pad_length, ), name = 'pressure_input')
-
+        #----------------------------------------------------------------------
+        continuous_inputs = Input(shape = (self.num_features, ), name = 'continuous_input')
+        adsorbent_inputs = Input(shape = (1, ), name = 'adsorbents_input')
+        adsorbate_inputs = Input(shape = (1, ), name = 'sorbates_input')
+        pressure_inputs = Input(shape = (self.pad_length, ), name = 'pressure_input')
+        #----------------------------------------------------------------------
         features_block = ContFeat_submodel(continuous_inputs)
         adsorbent_block = adsorbent_submodel(adsorbent_inputs)
         adsorbate_block = adsorbate_submodel(adsorbate_inputs)
         pressure_block = pressure_submodel(pressure_inputs) 
-        
-        
-        embedding_concat = layers.Concatenate()([adsorbent_block, adsorbate_block])             
-        #----------------------------------------------------------------------         
-        dense1 = layers.Dense(1024, activation = 'relu')(embedding_concat)        
-        #----------------------------------------------------------------------          
-        dense2 = layers.Dense(512, activation = 'relu')(dense1)
-        #----------------------------------------------------------------------
-        dense3 = layers.Dense(512, activation = 'relu')(dense2)
-        #----------------------------------------------------------------------
-        model_concat = layers.Concatenate()([dense3, features_block, pressure_block, pressure_inputs])
-        #----------------------------------------------------------------------
-        dense4 = layers.Dense(1024, activation = 'relu')(model_concat)
+        #----------------------------------------------------------------------       
+        embedding_concat = Concatenate()([adsorbent_block, adsorbate_block])                 
+        dense1 = Dense(1024, activation = 'relu')(embedding_concat)                 
+        dense2 = Dense(512, activation = 'relu')(dense1)       
+        dense3 = Dense(512, activation = 'relu')(dense2)       
+        model_concat = Concatenate()([dense3, features_block, pressure_block, pressure_inputs])        
+        dense4 = Dense(1024, activation = 'relu')(model_concat)                
+        dense5 = Dense(512, activation = 'relu')(dense4)                
+        dense6 = Dense(256, activation = 'relu')(dense5)
         #----------------------------------------------------------------------        
-        dense5 = layers.Dense(512, activation = 'relu')(dense4)
-        #----------------------------------------------------------------------        
-        dense6 = layers.Dense(256, activation = 'relu')(dense5)
-        #----------------------------------------------------------------------          
-        output = layers.Dense(self.pad_length, activation = 'relu')(dense6) 
-        #----------------------------------------------------------------------
+        output = Dense(self.pad_length, activation = 'relu')(dense6) 
+        
 
         inputs = [continuous_inputs, adsorbent_inputs, adsorbate_inputs, pressure_inputs]    
         model = Model(inputs = inputs, outputs = output, name = 'SCADS')       

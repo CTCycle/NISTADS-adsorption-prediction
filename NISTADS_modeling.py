@@ -15,11 +15,11 @@ from modules.components.data_classes import UserOperations
 #==============================================================================
 user_operations = UserOperations()
 operations_menu = {'1' : 'SCADS framework: training and predictions',                   
-                   '2' : 'BNADS framework: training and predictions',                                    
+                   '2' : 'BMADS framework: training and predictions',                                    
                    '3' : 'Exit and close'}
 
-SCADS_menu = {'1' : 'Preprocess data for SCADS model training',
-              '2' : 'Pretrain SCADS model',
+SCADS_menu = {'1' : 'Preprocess data for model training',
+              '2' : 'Pretrain model',
               '3' : 'Validation of pretrained models',
               '4' : 'Predict adsorption of compounds',              
               '5' : 'Go back to main menu'}

@@ -16,27 +16,27 @@ The Python-based application for this project is organized into several submodul
 
 **The main options are as following:**
 1) SCADS framework: training and predictions                   
-2) BNADS framework: training and predictions                                    
+2) BMADS framework: training and predictions                                    
 3) Exit and close
 
 **Any of the first two options** will open a submenu to select operations for the selected DNN model:
-1) Preprocess data for MODELNAME model training
-2) Pretrain MODELNAME model
+1) Preprocess data for model training
+2) Pretrain model
 3) Validation of pretrained models
 4) Predict adsorption of compounds            
 5) Go back to main menu
 
-### Data preprocessing
-This module handles the cleaning and preprocessing of the previosuly extracted data, including conversion of pressure and uptake to a common unit: Pascal (Pa) is used for pressure, while mol/g is used for the adsorbed amount. It includes functions for handling missing values, outliers, and data normalization. 
+### Preprocess data for model training
+This module handles the cleaning and preprocessing of previosuly extracted data, including conversion of pressure and uptake units to Pascal (Pa) and mol/g, respectively. Missing values are removed from the dataset, while pressure and uptake values above a given threshold are not included in the training dataset. Furthermore, the data is normalized to avoid havign different magnitudes across different variables. 
 
-### Model training
-This module contains the machine learning algorithms used to train the model. It includes functions for model selection, hyperparameter tuning, and cross-validation to ensure the robustness of the model.
+### Pretrain model
+Train the selected deep learning model by leveragin adsorption isotherm data.
 
-### Model evaluation
-This module is used to evaluate the performance of the trained model using various metrics such as Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), and R-squared (R²) score.
+### Validation of pretrained models
+Evaluate the performance of pretrained models using various metrics such as Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), and R-squared (R²) score.
 
-### Adsorption prediction
-Predict adsorption of compounds from input properties (guest and guest parameters, host, temperature) and given pressure series (in Pascal).The results are saved in a .csv file in the results folder.
+### Predict adsorption of compounds
+Predict adsorption of compounds from input properties (guest identity and parameters, host, temperature) and given pressure series (in Pascal). The results are saved in a .csv file in the "results" folder.
 
 ### Requirements
 This application has been developed and tested using the following dependencies (Python 3.10.12):
@@ -55,5 +55,8 @@ This application has been developed and tested using the following dependencies 
 
 These dependencies are specified in the provided `requirements.txt` file to ensure full compatibility with the application. 
 
-## Future Work
-The project is ongoing, and future work will focus on improving the accuracy of the model by incorporating more sophisticated machine learning algorithms and exploring more feature engineering techniques. Additionally, efforts will be made to update the model as new data becomes available in the NIST/ARPA-E Database.
+## License
+This project is licensed under the terms of the MIT license. See the LICENSE file for details.
+
+## Disclaimer
+The predictions given by the models rely on goodness of training (thus data completeness), and may be differnt from real-life values. Always use the results of pretrained model upon extensively validating them on your specific research datasets. 
