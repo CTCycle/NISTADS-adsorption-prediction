@@ -27,6 +27,7 @@ The configurations.py file allows to change the script configuration. The follow
 
 **Settings for training performance and monitoring options:**
 - `generate_model_graph:` generate and save 2D model graph (as .png file)
+- `use_mixed_precision:` whether or not to use mixed precision for faster training (mix float16/float32)
 - `use_tensorboard:` activate or deactivate tensorboard logging
 - `XLA_acceleration:` use of linear algebra acceleration for faster training 
 
@@ -35,15 +36,16 @@ The configurations.py file allows to change the script configuration. The follow
 - `epochs:` number of training iterations
 - `learning_rate:` learning rate of the model during training
 - `batch_size:` size of batches to be fed to the model during training
-- `embedding_size:` embedding dimensions (valid for both models)
-- `kernel_size:` size of convolutional kernel (image encoder)
-- `num_heads:` number of attention heads
+- `embedding_dims:` embedding dimensions for guest and host inputs
+- `test_size:` size of the test dataset (fraction of total samples)
 
 **Settings for data preprocessing and predictions:**
-- `picture_size:` shapeof the images as (height, width, channels)
-- `num_train_samples:` number of images to use for the model training
-- `num_test_samples:` number of images to use for the model validation
-- `augmentation:` whether or not to perform data agumentation on images (significant impact on training time)
+- `num_samples:` number of experiments to consider for training
+- `pad_length:` max length of the pressure/uptake series (for padding)
+- `pad_value:` number to assign to padded values (default: -1)
+- `min_points:` minimum amount of measurements points for an experiment to be selected
+- `max_pressure:` maximum allowed pressure (in Pascal)
+- `max_uptake:` maximum allowed uptake (in mol/g)
 
 ## Installation 
 First, ensure that you have Python 3.10.12 installed on your system. Then, you can easily install the required Python packages using the provided requirements.txt file:

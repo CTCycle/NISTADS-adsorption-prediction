@@ -236,9 +236,7 @@ class PreProcessing:
         test_X[['adsorbent_name']] = self.host_encoder.transform(test_X[['adsorbent_name']])
         test_X[['adsorbates_name']] = self.guest_encoder.transform(test_X[['adsorbates_name']])
 
-        return train_X, test_X  
-
-        
+        return train_X, test_X         
     
     # preprocessing model for tabular data using Keras pipeline    
     #--------------------------------------------------------------------------  

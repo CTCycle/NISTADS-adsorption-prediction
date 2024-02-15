@@ -22,9 +22,9 @@ print(ascii_art)
 #==============================================================================
 user_operations = UserOperations()
 operations_menu = {'1' : 'SCADS model training',                  
-                   '3' : 'Model evaluation',  
-                   '4' : 'Predict adsorption with pretrained model',                                   
-                   '5' : 'Exit and close'}
+                   '2' : 'Model evaluation',  
+                   '3' : 'Predict adsorption with pretrained model',                                   
+                   '4' : 'Exit and close'}
 
 while True:
     print('------------------------------------------------------------------------')
