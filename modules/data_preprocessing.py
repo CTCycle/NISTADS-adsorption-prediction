@@ -36,7 +36,7 @@ SCADS data preprocessing
 # create model folder and save placeholders in global variables
 #------------------------------------------------------------------------------
 preprocessor = PreProcessing()
-model_folder_path = preprocessor.model_savefolder(GlobVar.model_path, 'SCADS')
+model_folder_path = preprocessor.model_savefolder(GlobVar.models_path, 'SCADS')
 model_folder_name = preprocessor.folder_name
 GlobVar.model_folder_path = model_folder_path
 GlobVar.model_folder_name = model_folder_name

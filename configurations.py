@@ -11,8 +11,8 @@ seed = 42
 training_device = 'GPU'
 embedding_dims = 256
 epochs = 500
-learning_rate = 0.0001
-batch_size = 512
+learning_rate = 0.001
+batch_size = 1024
 test_size = 0.1
 
 # Define variables for the dataset

@@ -68,7 +68,7 @@ class Parametrizer(layers.Layer):
         self.dense1 = layers.Dense(256, activation='tanh', kernel_initializer='glorot_uniform')              
         self.dense2 = layers.Dense(256, activation='LeakyReLU', kernel_initializer='he_uniform')              
         self.dense3 = layers.Dense(512, activation='LeakyReLU', kernel_initializer='he_uniform')
-        self.dense4 = layers.Dense(512, activation='LeakyReLU', kernel_initializer='he_uniform')          
+        self.dense4 = layers.Dense(1024, activation='LeakyReLU', kernel_initializer='he_uniform')          
         self.layernorm = layers.LayerNormalization()                 
 
     # implement parametrizer through call method  
@@ -147,11 +147,11 @@ class GHEncoder(layers.Layer):
         self.embedding_G = layers.Embedding(input_dim=gvocab_size, output_dim=self.embedding_dims)
         self.embedding_H = layers.Embedding(input_dim=hvocab_size, output_dim=self.embedding_dims)              
         self.dense1 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')    
-        self.dense2 = layers.Dense(384, activation='relu',kernel_initializer='he_uniform') 
-        self.dense3 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')        
+        self.dense2 = layers.Dense(512, activation='relu',kernel_initializer='he_uniform') 
+        self.dense3 = layers.Dense(1024, activation='relu', kernel_initializer='he_uniform')        
         self.layernorm = layers.LayerNormalization() 
         self.pooling = layers.GlobalAveragePooling1D()             
-        self.bnffn = BNFeedForward(512, self.seed, 0.2)        
+        self.bnffn = BNFeedForward(1024, self.seed, 0.2)        
         
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
@@ -193,11 +193,11 @@ class PressureEncoder(layers.Layer):
         super(PressureEncoder, self).__init__(**kwargs)
         self.pad_value = pad_value        
         self.seed = seed               
-        self.conv = layers.Conv1D(128, 6, padding='same', activation='tanh', kernel_initializer='glorot_uniform')
-        self.dense1 = layers.Dense(128, activation='LeakyReLU', kernel_initializer='he_uniform')    
-        self.dense2 = layers.Dense(256, activation='LeakyReLU', kernel_initializer='he_uniform')        
-        self.bnffn1 = BNFeedForward(512, self.seed, 0.2) 
-        self.bnffn2 = BNFeedForward(512, self.seed, 0.2)        
+        self.conv = layers.Conv1D(256, 6, padding='same', activation='tanh', kernel_initializer='glorot_uniform')
+        self.dense1 = layers.Dense(256, activation='LeakyReLU', kernel_initializer='he_uniform')    
+        self.dense2 = layers.Dense(512, activation='LeakyReLU', kernel_initializer='he_uniform')        
+        self.bnffn1 = BNFeedForward(1024, self.seed, 0.2) 
+        self.bnffn2 = BNFeedForward(1024, self.seed, 0.2)        
         self.layernorm = layers.LayerNormalization()
         self.globpool = layers.GlobalAveragePooling1D()  
         self.supports_masking = True
@@ -341,8 +341,8 @@ class SCADSModel:
 #==============================================================================
 @register_keras_serializable(package='CustomLoss', name='MaskedMeanSquaredError')
 class MaskedMeanSquaredError(keras.losses.Loss):
-    def __init__(self, pad_value, reduction=keras.losses.Reduction.AUTO, **kwargs):
-        super(MaskedMeanSquaredError, self).__init__(reduction=reduction, **kwargs)
+    def __init__(self, pad_value, reduction=keras.losses.Reduction.AUTO, name='MaskedMeanSquaredError', **kwargs):
+        super(MaskedMeanSquaredError, self).__init__(reduction=reduction, name=name, **kwargs)
         self.pad_value = pad_value
 
     def call(self, y_true, y_pred):
