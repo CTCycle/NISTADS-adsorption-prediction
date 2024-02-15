@@ -5,6 +5,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
 from tensorflow.keras.preprocessing.sequence import pad_sequences 
+from sklearn.preprocessing import MinMaxScaler, OrdinalEncoder
 from tqdm import tqdm
 tqdm.pandas()
 
@@ -61,7 +62,8 @@ class UserOperations:
                     continue
             break
         
-        return op_sel        
+        return op_sel   
+         
 
 # [DATA PREPROCESSING]
 #==============================================================================
@@ -69,48 +71,30 @@ class UserOperations:
 #==============================================================================
 class PreProcessing:
     
-    """ 
-    A class for preprocessing operations in pointwise fashion (with expanded dataset).
-    Includes many different methods that can be used in sequence to build a functional
-    preprocessing pipeline.
-      
-    Methods:
-        
-    __init__(df_SC, df_BN): initializes the class with the single component 
-                            and binary mixrture datasets
     
-    dataset_splitting():    splits dataset into train, test and validation sets
-
-    """  
-
     #--------------------------------------------------------------------------
-    def pressure_converter(self, type, original_P):
+    def pressure_converter(self, type, p_val):
 
         '''
-        pressure_converter(type, original_P)
-
         Converts pressure from the specified unit to Pascals.
 
         Keyword arguments:
             type (str): The original unit of pressure.
-            original_P (int or float): The original pressure value.
+            p_val (int or float): The original pressure value.
 
         Returns:
-            P_value (int): The pressure value converted to Pascals.
+            p_val (int): The pressure value converted to Pascals.
 
-        '''           
-        P_unit = type
-        if P_unit == 'bar':
-            P_value = int(original_P * 100000)        
+        '''         
+        if type == 'bar':
+            p_val = int(p_val * 100000)        
                 
-        return P_value 
+        return p_val
 
     #--------------------------------------------------------------------------
     def uptake_converter(self, q_unit, q_val, mol_weight):
 
         '''
-        uptake_converter(q_unit, q_val, mol_weight)
-
         Converts the uptake value from the specified unit to moles per gram.
 
         Keyword arguments:
@@ -119,45 +103,146 @@ class PreProcessing:
             mol_weight (int or float): The molecular weight of the adsorbate.
 
         Returns:
-            Q_value (float): The uptake value converted to moles per gram
+            q_val (float): The uptake value converted to moles per gram
 
-        '''
-        Q_value = q_val
+        '''        
         if q_unit in ('mmol/g', 'mol/kg'):
-            Q_value = q_val/1000 
-        elif q_unit == 'mol/g':
-            Q_value = q_val
+            q_val = q_val/1000         
         elif q_unit == 'mmol/kg':
-            Q_value = q_val/1000000
+            q_val = q_val/1000000
         elif q_unit == 'mg/g':
-            Q_value = q_val/1000/float(mol_weight)            
+            q_val = q_val/1000/float(mol_weight)            
         elif q_unit == 'g/g':
-            Q_value = (q_val/float(mol_weight))                                   
+            q_val = (q_val/float(mol_weight))                                   
         elif q_unit == 'wt%':                
-            Q_value = ((q_val/100)/float(mol_weight))          
+            q_val = ((q_val/100)/float(mol_weight))          
         elif q_unit in ('g Adsorbate / 100g Adsorbent', 'g/100g'):              
-            Q_value = ((q_val/100)/float(mol_weight))                            
+            q_val = ((q_val/100)/float(mol_weight))                            
         elif q_unit in ('ml(STP)/g', 'cm3(STP)/g'):
-            Q_value = q_val/22.414      
+            q_val = q_val/22.414      
                 
-        return Q_value        
+        return q_val        
         
     #--------------------------------------------------------------------------
-    def properties_assigner(self, df_isotherms, df_adsorbates):
+    def guest_properties(self, df_isotherms, df_adsorbates):
 
-        df_properties = df_adsorbates[['name', 'complexity', 'atoms', 'mol_weight', 'covalent_units', 'H_acceptors', 'H_donors', 'heavy_atoms']]
-        df_properties = df_properties.rename(columns = {'name': 'adsorbates_name'})
-        df_isotherms['adsorbates_name'] = df_isotherms['adsorbates_name'].apply(lambda x : x.lower())
-        df_properties['adsorbates_name'] = df_properties['adsorbates_name'].apply(lambda x : x.lower())
-        df_adsorption = pd.merge(df_isotherms, df_properties, on = 'adsorbates_name', how='left')
-        df_adsorption = df_adsorption.dropna().reset_index(drop=True)
+        '''
+        Assigns properties to adsorbates based on their isotherm data.
 
-        return df_adsorption    
+        This function takes two pandas DataFrames: one containing isotherm data (df_isotherms)
+        and another containing adsorbate properties (df_adsorbates). It merges the two DataFrames
+        on the 'adsorbates_name' column, assigns properties to each adsorbate, and returns a new
+        DataFrame containing the merged data with assigned properties.
+
+        Keyword Arguments:
+            df_isotherms (pandas DataFrame): A DataFrame containing isotherm data.
+            df_adsorbates (pandas DataFrame): A DataFrame containing adsorbate properties.
+
+        Returns:
+            df_adsorption (pandas DataFrame): A DataFrame containing merged isotherm data
+                                              with assigned adsorbate properties.
+
+        '''
+        df_isotherms['adsorbates_name'] = df_isotherms['adsorbates_name'].str.lower()
+        df_adsorbates['adsorbates_name'] = df_adsorbates['name'].str.lower()        
+        df_properties = df_adsorbates[['adsorbates_name', 'complexity', 'atoms', 'mol_weight', 
+                                        'covalent_units', 'H_acceptors', 'H_donors', 'heavy_atoms']]        
+        df_adsorption = pd.merge(df_isotherms, df_properties, on='adsorbates_name', how='inner')
+
+        return df_adsorption
+    
+    # normalize data 
+    #--------------------------------------------------------------------------  
+    def normalize_data(self, train_X, train_Y, test_X, test_Y):
+
+        '''
+        Normalize the input features and output labels for training and testing data.
+        This method normalizes the input features and output labels to facilitate 
+        better model training and evaluation.
+
+        Keyword Arguments:
+            train_X (DataFrame): DataFrame containing the features of the training data.
+            train_Y (list): List containing the labels of the training data.
+            test_X (DataFrame): DataFrame containing the features of the testing data.
+            test_Y (list): List containing the labels of the testing data.
+
+        Returns:
+            Tuple: A tuple containing the normalized training features, normalized training labels,
+                   normalized testing features, and normalized testing labels.
+        
+        '''
+        columns = ['temperature', 'mol_weight', 'complexity', 'heavy_atoms']
+
+        # cast float type for both the labels and the continuous features columns
+        train_Y = [[float(value) for value in row] for row in train_Y]
+        test_Y = [[float(value) for value in row] for row in test_Y]
+        train_X[columns] = train_X[columns].astype(float)        
+        test_X[columns] = test_X[columns].astype(float)
+        
+        # normalize the numerical features (temperature, physicochemical properties)      
+        self.features_normalizer = MinMaxScaler(feature_range=(0, 1))
+        train_X[columns] = self.features_normalizer.fit_transform(train_X[columns])
+        test_X[columns] = self.features_normalizer.transform(test_X[columns])
+
+        # normalize pressures of adsorption within the range 0 - 1
+        # flatten and reshape array of arrays to make it compatible with the MinMaxScaler
+        # use apply to transform each array
+        column = 'pressure_in_Pascal'
+        pressure_array = [item for sublist in train_X[column] for item in sublist]
+        pressure_array = np.array(pressure_array).reshape(-1, 1)
+
+        self.pressure_normalizer = MinMaxScaler(feature_range=(0, 1))
+        self.pressure_normalizer.fit(pressure_array)
+        train_X[column] = train_X[column].apply(lambda x: self.pressure_normalizer.transform(np.array(x).reshape(-1, 1)).flatten())
+        test_X[column] = test_X[column].apply(lambda x: self.pressure_normalizer.transform(np.array(x).reshape(-1, 1)).flatten())
+
+        # normalize uptake within the range 0 - 1
+        # flatten and reshape array of arrays to make it compatible with the MinMaxScaler
+        # use apply to transform each array
+        column = 'uptake_in_mol/g'
+        uptake_array = [item for sublist in train_Y for item in sublist]
+        uptake_array = np.array(uptake_array).reshape(-1, 1)
+
+        self.uptake_normalizer = MinMaxScaler(feature_range=(0, 1))
+        self.uptake_normalizer.fit(uptake_array)
+        train_Y = [self.uptake_normalizer.transform(np.array(x).reshape(-1, 1)).flatten() for x in train_Y]
+        test_Y = [self.uptake_normalizer.transform(np.array(x).reshape(-1, 1)).flatten() for x in test_Y]
+
+        return train_X, train_Y, test_X, test_Y    
+    
+    # encode variables  
+    #--------------------------------------------------------------------------  
+    def data_encoding(self, unique_adsorbents, unique_sorbates, train_X, test_X):
+
+        '''
+        Encode categorical features using ordinal encoding. This method encodes categorical 
+        features in the training and testing data using ordinal encoding.
+
+        Keyword Arguments:
+            unique_adsorbents (int): Number of unique adsorbents.
+            unique_sorbates (int): Number of unique sorbates.
+            train_X (DataFrame): DataFrame containing the features of the training data.
+            test_X (DataFrame): DataFrame containing the features of the testing data.
+
+        Returns:
+            Tuple: A tuple containing the encoded training features and encoded testing features.
+        
+        '''      
+        self.host_encoder = OrdinalEncoder(categories='auto', handle_unknown='use_encoded_value', unknown_value=unique_adsorbents - 1)
+        self.guest_encoder = OrdinalEncoder(categories='auto', handle_unknown='use_encoded_value',  unknown_value=unique_sorbates - 1)
+        
+        train_X[['adsorbent_name']] = self.host_encoder.fit_transform(train_X[['adsorbent_name']])
+        train_X[['adsorbates_name']] = self.guest_encoder.fit_transform(train_X[['adsorbates_name']])
+        test_X[['adsorbent_name']] = self.host_encoder.transform(test_X[['adsorbent_name']])
+        test_X[['adsorbates_name']] = self.guest_encoder.transform(test_X[['adsorbates_name']])
+
+        return train_X, test_X  
+
+        
     
     # preprocessing model for tabular data using Keras pipeline    
     #--------------------------------------------------------------------------  
-    def series_preprocessing(self, series, str_output=False, padding=True, normalization=True,
-                             upper=None, pad_value=20, pad_length=10):
+    def sequence_padding(self, sequence, pad_value=0, pad_length=50):
 
         '''
         Normalizes a series of values.
@@ -169,22 +254,10 @@ class PreProcessing:
             list: A list of normalized values
         
         '''
-        processed_series = series 
-        if normalization == True:  
-            if upper != None:
-                processed_series = [x/upper for x in series]
-            else:
-                max_val = max([float(g) for g in series])
-                if max_val == 0.0:
-                    max_val = 10e-14
-                processed_series = [x/max_val for x in series]
-        if padding == True:
-            processed_series = pad_sequences([processed_series], maxlen = pad_length, 
-                                              value = pad_value, dtype = 'float32', padding = 'post')
-            pp_seq = processed_series[0]
-
-        if str_output == True:
-            pp_seq = ' '.join([str(x) for x in pp_seq])
+        processed_series = pad_sequences([sequence], maxlen=pad_length, value=pad_value, 
+                                         dtype = 'float32', padding = 'post')
+        pp_seq = processed_series[0]        
+        pp_seq = ' '.join([str(x) for x in pp_seq])
 
         return pp_seq        
         
@@ -202,19 +275,20 @@ class PreProcessing:
             str: A string containing the path of the folder where the model will be saved.
         
         '''        
-        raw_today_datetime = str(datetime.now())
-        truncated_datetime = raw_today_datetime[:-10]
+        today_datetime = str(datetime.now())
+        truncated_datetime = today_datetime[:-10]
         today_datetime = truncated_datetime.replace(':', '').replace('-', '').replace(' ', 'H') 
-        model_name = f'{model_name}_{today_datetime}'
-        model_savepath = os.path.join(path, model_name)
-        if not os.path.exists(model_savepath):
-            os.mkdir(model_savepath)               
-            
-        return model_savepath      
+        self.folder_name = f'{model_name}_{today_datetime}'
+        model_folder_path = os.path.join(path, self.folder_name)
+        if not os.path.exists(model_folder_path):
+            os.mkdir(model_folder_path) 
+                    
+        return model_folder_path
+          
 
-# define class for correlations calculations
+# [CORRELATIONS]
 #==============================================================================
-#==============================================================================
+# ...
 #==============================================================================
 class MultiCorrelator:
     
