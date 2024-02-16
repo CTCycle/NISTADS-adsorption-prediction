@@ -113,18 +113,17 @@ test_output = np.stack(test_output.values)
 train_inputs = [train_X[features], train_X[ads_col], train_X[sorb_col], train_pressure]
 test_inputs = [test_X[features], test_X[ads_col], test_X[sorb_col], test_pressure]
 
-# initialize model class
+# determine number of classes and features, then initialize and build the model
 #------------------------------------------------------------------------------
-unique_adsorbents = len(host_encoder.categories_[0])
-unique_sorbates = len(guest_encoder.categories_[0])
-num_features = len(features)     
+num_features = len(features)   
+unique_adsorbents, unique_sorbates = len(host_encoder.categories_[0]), len(guest_encoder.categories_[0]) 
 modelworker = SCADSModel(cnf.learning_rate, num_features, cnf.pad_length, 
                          cnf.pad_value, unique_adsorbents, unique_sorbates, 
                          cnf.embedding_dims, cnf.seed, XLA_acceleration=cnf.XLA_acceleration)
 
 model = modelworker.get_model(summary=True) 
 
-# generate graphviz plot fo the model layout
+# generate graphviz plot for the model layout
 #------------------------------------------------------------------------------
 if cnf.generate_model_graph==True:
     plot_path = os.path.join(GlobVar.model_folder_path, 'model_layout.png')       
@@ -163,15 +162,16 @@ training = model.fit(x=train_inputs, y=train_output, batch_size=cnf.batch_size,
                      validation_data=validation_data, epochs=cnf.epochs, 
                      verbose=1, shuffle=True, callbacks=callbacks, workers=6, use_multiprocessing=True)
 
-model_file_path = os.path.join(GlobVar.model_folder_path, 'model.keras')
-model.save(model_file_path)
+model_files_path = os.path.join(GlobVar.model_folder_path, 'model')
+model.save(model_files_path, save_format='tf')
 
 print(f'''
 -------------------------------------------------------------------------------
 Training session is over. Model has been saved in folder {GlobVar.model_folder_name}
 -------------------------------------------------------------------------------
 ''')
-        
+
+       
 # save model data and model parameters in txt files
 #------------------------------------------------------------------------------
 parameters = {'Train_samples' : train_X.shape[0],

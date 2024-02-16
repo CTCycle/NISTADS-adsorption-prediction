@@ -28,10 +28,20 @@ import configurations as cnf
 #==============================================================================
 print('''
 -------------------------------------------------------------------------------
-SCADS data preprocessing
+Data preprocessing
 -------------------------------------------------------------------------------
 ...
 ''')
+
+# define column names
+#------------------------------------------------------------------------------
+valid_units = ['mmol/g', 'mol/kg', 'mol/g', 'mmol/kg', 'mg/g', 'g/g', 
+               'wt%', 'g Adsorbate / 100g Adsorbent', 'g/100g', 'ml(STP)/g', 
+               'cm3(STP)/g']
+P_col = 'pressure_in_Pascal'
+Q_col = 'uptake_in_mol/g'
+P_unit_col = 'pressureUnits'
+Q_unit_col = 'adsorptionUnits'
 
 # create model folder and save placeholders in global variables
 #------------------------------------------------------------------------------
@@ -58,30 +68,27 @@ df_adsorbents = pd.read_csv(file_loc, sep = ';', encoding = 'utf-8')
 
 # add molecular properties based on PUG CHEM API data
 #------------------------------------------------------------------------------ 
-print(f'''STEP 1 - Prepare raw dataset for preprocessing
+print(f'''STEP 1 - Preprocess data for SCADS training
       ''')
 preprocessor = PreProcessing()
 dataset = preprocessor.guest_properties(df_adsorption, df_adsorbates)
 
 # filter experiments by allowed uptake units
 #------------------------------------------------------------------------------ 
-valid_units = ['mmol/g', 'mol/kg', 'mol/g', 'mmol/kg', 'mg/g', 'g/g', 
-               'wt%', 'g Adsorbate / 100g Adsorbent', 'g/100g', 'ml(STP)/g', 
-               'cm3(STP)/g']
-dataset = dataset[dataset['adsorptionUnits'].isin(valid_units)]
+dataset = dataset[dataset[Q_unit_col].isin(valid_units)]
 
 # convert pressure and uptake to Pa (pressure) and mol/kg (uptake) 
 #------------------------------------------------------------------------------ 
-dataset['pressure_in_Pascal'] = dataset.progress_apply(lambda x : preprocessor.pressure_converter(x['pressureUnits'], x['pressure']), axis = 1)
-dataset['uptake_in_mol/g'] = dataset.progress_apply(lambda x : preprocessor.uptake_converter(x['adsorptionUnits'], x['adsorbed_amount'], x['mol_weight']), axis = 1)
+dataset[P_col] = dataset.progress_apply(lambda x : preprocessor.pressure_converter(x[P_unit_col], x['pressure']), axis = 1)
+dataset[Q_col] = dataset.progress_apply(lambda x : preprocessor.uptake_converter(x[Q_unit_col], x['adsorbed_amount'], x['mol_weight']), axis = 1)
 print()
 
 # filter the dataset to remove experiments with units are outside desired boundaries, 
 # such as experiments with negative values of temperature, pressure and uptake
 #------------------------------------------------------------------------------ 
 dataset = dataset[dataset['temperature'].astype(int) > 0]
-dataset = dataset[dataset['pressure_in_Pascal'].astype(float).between(0.0, cnf.max_pressure)]
-dataset = dataset[dataset['uptake_in_mol/g'].astype(float).between(0.0, cnf.max_uptake)]
+dataset = dataset[dataset[P_col].astype(float).between(0.0, cnf.max_pressure)]
+dataset = dataset[dataset[Q_col].astype(float).between(0.0, cnf.max_uptake)]
 
 # [GROUP DATASET BY EXPERIMENT]
 #==============================================================================
@@ -108,21 +115,27 @@ total_num_exp = dataset_grouped.shape[0]
 # remove series of pressure/uptake with less than X points, drop rows containing nan
 # values and select a subset of samples for training
 #------------------------------------------------------------------------------ 
-dataset_grouped = dataset_grouped[dataset_grouped['pressure_in_Pascal'].apply(lambda x: len(x)) >= cnf.min_points]
+dataset_grouped = dataset_grouped[dataset_grouped[P_col].apply(lambda x: len(x)) >= cnf.min_points]
 dataset_grouped = dataset_grouped.dropna()
-dataset_grouped = dataset_grouped.sample(n=cnf.num_samples, random_state=30).reset_index()
+try:
+    dataset_grouped = dataset_grouped.sample(n=cnf.num_samples, random_state=30).reset_index()
+except:
+    pass
 
 # [DATA PREPROCESSING]
 #==============================================================================
 # Preprocess data using different methods
 #==============================================================================
-print(f'''STEP 2 - Preprocess data for SCADS training
-      ''')
+
+# check pressure and uptake series and force them to converge at zero
+# at the beginning: f(x) = 0 for x = 0
+#------------------------------------------------------------------------------
+dataset_grouped = dataset_grouped.apply(preprocessor.zero_convergence, args=(P_col, Q_col), axis=1)
 
 # isolate data inputs and outputs 
 #------------------------------------------------------------------------------ 
-inputs = dataset_grouped[[x for x in dataset_grouped.columns if x != 'uptake_in_mol/g']]
-labels = dataset_grouped['uptake_in_mol/g']
+inputs = dataset_grouped[[x for x in dataset_grouped.columns if x != Q_col]]
+labels = dataset_grouped[Q_col]
 
 # split train and test dataset
 #------------------------------------------------------------------------------ 
@@ -132,7 +145,7 @@ train_X, test_X, train_Y, test_Y = train_test_split(inputs, labels, test_size=cn
 # normalize all continuous variables (temperature, physicochemical properties,
 # pressure, uptake)
 #------------------------------------------------------------------------------
-print(f'''STEP 3 - Normalizing continuous variables 
+print(f'''STEP 2 - Normalizing continuous variables 
       ''') 
 train_X, train_Y, test_X, test_Y = preprocessor.normalize_data(train_X, train_Y, test_X, test_Y)
 features_normalizer = preprocessor.features_normalizer
@@ -142,7 +155,7 @@ uptake_normalizer = preprocessor.uptake_normalizer
 # normalize all continuous variables (temperature, physicochemical properties,
 # pressure, uptake)
 #------------------------------------------------------------------------------
-print(f'''STEP 4 - Encoding categorical variables 
+print(f'''STEP 3 - Encoding categorical variables 
       ''') 
 
 unique_adsorbents = train_X['adsorbent_name'].nunique() + 1
@@ -156,8 +169,8 @@ guest_encoder = preprocessor.guest_encoder
 
 # apply encoding on the adsorbent and sorbates columns
 #------------------------------------------------------------------------------ 
-train_X['pressure_in_Pascal'] = train_X['pressure_in_Pascal'].apply(lambda x : preprocessor.sequence_padding(x, pad_length=cnf.pad_length, pad_value=cnf.pad_value))
-test_X['pressure_in_Pascal'] = test_X['pressure_in_Pascal'].apply(lambda x : preprocessor.sequence_padding(x, pad_length=cnf.pad_length, pad_value=cnf.pad_value))
+train_X[P_col] = train_X[P_col].apply(lambda x : preprocessor.sequence_padding(x, pad_length=cnf.pad_length, pad_value=cnf.pad_value))
+test_X[P_col] = test_X[P_col].apply(lambda x : preprocessor.sequence_padding(x, pad_length=cnf.pad_length, pad_value=cnf.pad_value))
 train_Y = [preprocessor.sequence_padding(x, pad_length=cnf.pad_length, pad_value=cnf.pad_value) for x in train_Y]
 test_Y = [preprocessor.sequence_padding(x, pad_length=cnf.pad_length, pad_value=cnf.pad_value) for x in test_Y]
 
@@ -174,7 +187,8 @@ Number of experiments upon filtering:   {dataset.groupby('filename').ngroup().nu
 Number of experiments removed:          {df_adsorption.groupby('filename').ngroup().nunique() - dataset.groupby('filename').ngroup().nunique()}
 -------------------------------------------------------------------------------
 Total number of experiments:             {total_num_exp}
-Select number of experiments:            {cnf.num_samples}
+Selected number of experiments:          {cnf.num_samples}
+Actual number of experiments:            {dataset_grouped.shape[0]}
 Total number of experiments (train set): {train_X.shape[0]}
 Total number of experiments (test set):  {test_X.shape[0]}
 -------------------------------------------------------------------------------
@@ -200,8 +214,8 @@ with open(encoder_path, 'wb') as file:
 
 # transform label datasets into pandas dataframe to save as .csv
 #------------------------------------------------------------------------------
-train_Y = pd.DataFrame(train_Y, columns=['uptake_in_mol/g'])
-test_Y = pd.DataFrame(test_Y, columns=['uptake_in_mol/g'])
+train_Y = pd.DataFrame(train_Y, columns=[Q_col])
+test_Y = pd.DataFrame(test_Y, columns=[Q_col])
 
 # save preprocessed data
 #------------------------------------------------------------------------------

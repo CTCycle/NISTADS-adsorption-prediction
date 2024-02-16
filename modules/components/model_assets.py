@@ -37,17 +37,17 @@ class RealTimeHistory(keras.callbacks.Callback):
         if epoch % 20 == 0:           
             fig_path = os.path.join(self.plot_path, 'training_history.jpeg')
             plt.subplot(2, 1, 1)
-            plt.plot(self.epochs, self.loss_hist, label='training loss')
+            plt.plot(self.epochs, self.loss_hist, label='trains')
             if self.validation==True:
-                plt.plot(self.epochs, self.loss_val_hist, label='validation loss')
+                plt.plot(self.epochs, self.loss_val_hist, label='validation')
                 plt.legend(loc = 'best', fontsize = 8)
             plt.title('Loss plot')
             plt.ylabel('MSE')
             plt.xlabel('epoch')
             plt.subplot(2, 1, 2)
-            plt.plot(self.epochs, self.metric_hist, label='train metrics') 
+            plt.plot(self.epochs, self.metric_hist, label='train') 
             if self.validation==True: 
-                plt.plot(self.epochs, self.metric_val_hist, label='validation metrics') 
+                plt.plot(self.epochs, self.metric_val_hist, label='validation') 
                 plt.legend(loc = 'best', fontsize = 8)
             plt.title('metrics plot')
             plt.ylabel('MAE')
@@ -193,9 +193,9 @@ class PressureEncoder(layers.Layer):
         super(PressureEncoder, self).__init__(**kwargs)
         self.pad_value = pad_value        
         self.seed = seed               
-        self.conv = layers.Conv1D(256, 6, padding='same', activation='tanh', kernel_initializer='glorot_uniform')
-        self.dense1 = layers.Dense(256, activation='LeakyReLU', kernel_initializer='he_uniform')    
-        self.dense2 = layers.Dense(512, activation='LeakyReLU', kernel_initializer='he_uniform')        
+        self.conv = layers.Conv1D(256, 6, padding='same', activation='relu', kernel_initializer='he_uniform')
+        self.dense1 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')    
+        self.dense2 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')        
         self.bnffn1 = BNFeedForward(1024, self.seed, 0.2) 
         self.bnffn2 = BNFeedForward(1024, self.seed, 0.2)        
         self.layernorm = layers.LayerNormalization()
@@ -328,7 +328,7 @@ class SCADSModel:
         opt = keras.optimizers.Adam(learning_rate=self.learning_rate)
         loss = MaskedMeanSquaredError(self.pad_value)
         metrics = keras.metrics.MeanAbsoluteError()
-        model.compile(loss = loss, optimizer = opt, metrics = metrics, run_eagerly=False,
+        model.compile(loss=loss, optimizer=opt, metrics=metrics, run_eagerly=False,
                       jit_compile=self.XLA_state)     
         if summary==True:
             model.summary(expand_nested=True)
@@ -349,9 +349,20 @@ class MaskedMeanSquaredError(keras.losses.Loss):
         mask = tf.not_equal(y_true, self.pad_value)  
         mask = tf.cast(mask, dtype=y_pred.dtype)  
         loss = tf.square(y_true - y_pred) * mask 
-        loss = tf.reduce_sum(loss) / tf.reduce_sum(mask)  
+        loss = tf.reduce_sum(loss)/tf.reduce_sum(mask)  
 
         return loss
+    
+    # serialize loss for saving  
+    #--------------------------------------------------------------------------
+    def get_config(self):
+        config = super(MaskedMeanSquaredError, self).get_config()        
+        config.update({'pad_value': self.pad_value})
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config) 
 
 # [TRAINING OPTIONS]
 #==============================================================================
@@ -480,8 +491,8 @@ class Inference:
         elif len(model_folders) == 1:
             self.folder_path = os.path.join(path, model_folders[0])                 
         
-        self.model_path = os.path.join(self.folder_path, 'model.keras') 
-        model = tf.keras.models.load_model(self.model_path)
+        self.model_path = os.path.join(self.folder_path, 'model') 
+        model = tf.keras.models.load_model(self.model_path, compile=True)
         path = os.path.join(self.folder_path, 'model_parameters.json')
         with open(path, 'r') as f:
             configuration = json.load(f)               

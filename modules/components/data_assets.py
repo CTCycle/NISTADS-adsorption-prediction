@@ -9,23 +9,13 @@ from sklearn.preprocessing import MinMaxScaler, OrdinalEncoder
 from tqdm import tqdm
 tqdm.pandas()
 
+# [USER OPERATIONS]
+#==============================================================================
 # ...
-#==============================================================================
-#==============================================================================
 #==============================================================================
 class UserOperations:
     
-    """    
-    A class for user operations such as interactions with the console, directories and files
-    cleaning and other maintenance operations.
-      
-    Methods:
         
-    menu_selection(menu):  console menu management 
-    clear_all_files(path): remove files and directories
-   
-    """
-    
     # print custom menu on console and allows selecting an option
     #--------------------------------------------------------------------------
     def menu_selection(self, menu):        
@@ -69,9 +59,19 @@ class UserOperations:
 #==============================================================================
 # preprocess adsorption data
 #==============================================================================
-class PreProcessing:
+class PreProcessing:   
     
-    
+
+    #--------------------------------------------------------------------------
+    def zero_convergence(self, row, col_A, col_B):
+        if row[col_A][0] == 0 and row[col_B][0] != 0:
+            row[col_B][0] = 0         
+        elif row[col_A][0] != 0 and row[col_B][0] != 0:
+            row[col_A].insert(0, 0)
+            row[col_B].insert(0, 0)
+
+        return row
+
     #--------------------------------------------------------------------------
     def pressure_converter(self, type, p_val):
 

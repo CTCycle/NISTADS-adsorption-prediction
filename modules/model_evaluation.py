@@ -48,9 +48,9 @@ filepath = os.path.join(pp_path, 'train_X.csv')
 train_X = pd.read_csv(filepath, sep= ';', encoding='utf-8')
 filepath = os.path.join(pp_path, 'test_X.csv')                
 test_X = pd.read_csv(filepath, sep= ';', encoding='utf-8')
-filepath = os.path.join(pp_path, 'train_X.csv')                
+filepath = os.path.join(pp_path, 'train_Y.csv')                
 train_Y = pd.read_csv(filepath, sep= ';', encoding='utf-8')
-filepath = os.path.join(pp_path, 'test_X.csv')                
+filepath = os.path.join(pp_path, 'test_Y.csv')                
 test_Y = pd.read_csv(filepath, sep= ';', encoding='utf-8')
 
 # load encoders and normalizers
@@ -99,15 +99,40 @@ test_pressure = np.stack(test_pressure.values)
 train_output = np.stack(train_output.values)
 test_output = np.stack(test_output.values)
 
-# generate inputs and predict values
+# define train and test inputs
 #------------------------------------------------------------------------------
 train_inputs = [train_X[features], train_X[ads_col], train_X[sorb_col], train_pressure]
 test_inputs = [test_X[features], test_X[ads_col], test_X[sorb_col], test_pressure]
-train_predictions = model.predict(train_inputs)
-test_predictions = model.predict(test_inputs)
 
-# remove padding and normalization from the series of true labels, predicted labels
-# and pressure (series of inputs)
+# define train and test inputs
+#------------------------------------------------------------------------------
+train_eval = model.evaluate(x=train_inputs, y=train_output, batch_size=512, 
+                            verbose=1, workers=6, use_multiprocessing=True)
+test_eval = model.evaluate(x=test_inputs, y=test_output, batch_size=512, 
+                            verbose=1, workers=6, use_multiprocessing=True)
+
+print(f'''
+-------------------------------------------------------------------------------
+MODEL EVALUATION
+-------------------------------------------------------------------------------    
+Train dataset:
+- Loss:   {train_eval[0]}
+- Metric: {train_eval[1]} 
+
+Test dataset:
+- Loss:   {test_eval[0]}
+- Metric: {test_eval[1]}        
+''')
+
+
+# # define train and test inputs
+# #------------------------------------------------------------------------------
+# train_predictions = model.predict(train_inputs)
+# test_predictions = model.predict(test_inputs)
+
+
+# # remove padding and normalization from the series of true labels, predicted labels
+# # and pressure (series of inputs)
 #------------------------------------------------------------------------------
 # absolute_pressures = []
 # absolute_uptakes = []
