@@ -158,9 +158,11 @@ else:
 
 # define and execute training loop, then save the model weights at end
 #------------------------------------------------------------------------------
+multiprocessing = cnf.num_processors > 1
 training = model.fit(x=train_inputs, y=train_output, batch_size=cnf.batch_size, 
                      validation_data=validation_data, epochs=cnf.epochs, 
-                     verbose=1, shuffle=True, callbacks=callbacks, workers=6, use_multiprocessing=True)
+                     verbose=1, shuffle=True, callbacks=callbacks, workers=cnf.num_processors,
+                     use_multiprocessing=True)
 
 model_files_path = os.path.join(GlobVar.model_folder_path, 'model')
 model.save(model_files_path, save_format='tf')
@@ -174,14 +176,14 @@ Training session is over. Model has been saved in folder {GlobVar.model_folder_n
        
 # save model data and model parameters in txt files
 #------------------------------------------------------------------------------
-parameters = {'Train_samples' : train_X.shape[0],
-              'Test_samples' : test_X.shape[0],             
-              'Sequence_lenght' : cnf.pad_length,
-              'Padding_value' : cnf.pad_value,
-              'Embedding_dimensions' : cnf.embedding_dims,             
-              'Batch_size' : cnf.batch_size,
-              'Learning_rate' : cnf.learning_rate,
-              'Epochs' : cnf.epochs}
+parameters = {'train_samples' : train_X.shape[0],
+              'test_samples' : test_X.shape[0],             
+              'sequence_lenght' : cnf.pad_length,
+              'padding_value' : cnf.pad_value,
+              'embedding_dimensions' : cnf.embedding_dims,             
+              'batch_size' : cnf.batch_size,
+              'learning_rate' : cnf.learning_rate,
+              'epochs' : cnf.epochs}
 
 trainer.model_parameters(parameters, GlobVar.model_folder_path)
 

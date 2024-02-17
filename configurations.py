@@ -4,6 +4,7 @@ use_mixed_precision = False
 use_tensorboard = False
 XLA_acceleration = False
 training_device = 'GPU'
+num_processors = 6
 
 # Settings for training routine
 #------------------------------------------------------------------------------

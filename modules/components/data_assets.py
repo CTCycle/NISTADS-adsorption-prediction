@@ -257,7 +257,26 @@ class PreProcessing:
         pp_seq = processed_series[0]        
         pp_seq = ' '.join([str(x) for x in pp_seq])
 
-        return pp_seq        
+        return pp_seq 
+
+    #--------------------------------------------------------------------------
+    def sequence_recovery(self, sequences, pad_value, normalizer, 
+                          from_reference=False, reference=None):
+
+        def unpadding(seq, pad_value):
+            pad_value = normalizer.inverse_transform(np.array([pad_value]).reshape(1, 1)) 
+            length = len([x for x in seq if x != pad_value.item()])            
+            return seq[:length]
+        
+        if from_reference==True and reference is not None:
+            reference_lens = [len(x) for x in reference]
+            scaled_sequences = normalizer.inverse_transform(sequences)
+            unpadded_sequences = [x[:l] for x, l in zip(scaled_sequences, reference_lens)] 
+        else:
+            scaled_sequences = normalizer.inverse_transform(sequences)            
+            unpadded_sequences = [unpadding(x, pad_value) for x in scaled_sequences]            
+        
+        return unpadded_sequences      
         
     #--------------------------------------------------------------------------
     def model_savefolder(self, path, model_name):

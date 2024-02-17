@@ -16,6 +16,7 @@ if __name__ == '__main__':
 
 # import modules and classes
 #------------------------------------------------------------------------------
+from modules.components.data_assets import PreProcessing
 from modules.components.model_assets import Inference, ModelValidation
 import modules.global_variables as GlobVar
 import configurations as cnf
@@ -83,7 +84,16 @@ Model validation
 ...
 ''')
 
+# initialize custom classes
+#------------------------------------------------------------------------------
+preprocessor = PreProcessing()
 validator = ModelValidation(model)
+
+# create subfolder for evaluation data
+#------------------------------------------------------------------------------
+eval_path = os.path.join(model_path, 'evaluation') 
+if not os.path.exists(eval_path):
+    os.mkdir(eval_path)
 
 # convert pressure and uptake sequences from strings to array of floats
 #------------------------------------------------------------------------------
@@ -104,12 +114,12 @@ test_output = np.stack(test_output.values)
 train_inputs = [train_X[features], train_X[ads_col], train_X[sorb_col], train_pressure]
 test_inputs = [test_X[features], test_X[ads_col], test_X[sorb_col], test_pressure]
 
-# define train and test inputs
+# evaluate model performance on train and test datasets
 #------------------------------------------------------------------------------
 train_eval = model.evaluate(x=train_inputs, y=train_output, batch_size=512, 
                             verbose=1, workers=6, use_multiprocessing=True)
 test_eval = model.evaluate(x=test_inputs, y=test_output, batch_size=512, 
-                            verbose=1, workers=6, use_multiprocessing=True)
+                           verbose=1, workers=6, use_multiprocessing=True)
 
 print(f'''
 -------------------------------------------------------------------------------
@@ -124,41 +134,31 @@ Test dataset:
 - Metric: {test_eval[1]}        
 ''')
 
-
-# # define train and test inputs
-# #------------------------------------------------------------------------------
-# train_predictions = model.predict(train_inputs)
-# test_predictions = model.predict(test_inputs)
-
-
-# # remove padding and normalization from the series of true labels, predicted labels
-# # and pressure (series of inputs)
+# predict adsorption from train and test datasets input
 #------------------------------------------------------------------------------
-# absolute_pressures = []
-# absolute_uptakes = []
-# absolute_predictions = []
+train_predictions = model.predict(train_inputs)
+test_predictions = model.predict(test_inputs)
 
-# for series in val_pressures:
-#     true_length = len([x for x in series if x != cnf.pad_value])
-#     sliced_series = series[:true_length]
-#     reverse_series = [pressure_normalizer.inverse_transform(np.array(x).reshape(-1, 1)).flatten().tolist() for x in sliced_series]
-#     absolute_pressures.append(reverse_series)
+# remove padding and normalization from the original train and test pressure series,
+# as well from the original train and test uptake series and the predicted values
+#------------------------------------------------------------------------------
+true_train_pressures = preprocessor.sequence_recovery(train_pressure, parameters['padding_value'], press_normalizer) 
+true_test_pressures = preprocessor.sequence_recovery(test_pressure, parameters['padding_value'], press_normalizer)
+true_train_uptakes = preprocessor.sequence_recovery(train_output, parameters['padding_value'], uptake_normalizer) 
+true_test_uptakes = preprocessor.sequence_recovery(test_output, parameters['padding_value'], uptake_normalizer) 
 
-# for series in val_uptakes:
-#     true_length = len([x for x in series if x != cnf.pad_value])
-#     sliced_series = series[:true_length]
-#     reverse_series = [uptake_normalizer.inverse_transform(np.array(x).reshape(-1, 1)).flatten().tolist() for x in sliced_series]
-#     absolute_uptakes.append(reverse_series)
+# the lenght of the original uptake series (labels) is used to slice the predicted series,
+# since the pad value cannot be used directly as a reference to remove unwanted values
+predicted_train_uptakes = preprocessor.sequence_recovery(train_predictions, parameters['padding_value'], uptake_normalizer,
+                                                         from_reference=True, reference=true_train_uptakes) 
+predicted_test_uptakes = preprocessor.sequence_recovery(test_predictions, parameters['padding_value'], uptake_normalizer,
+                                                        from_reference=True, reference=true_test_uptakes)
 
-# for series, abs in zip(val_predictions, absolute_uptakes):    
-#     sliced_series = series[:len(abs)]
-#     reverse_series = [uptake_normalizer.inverse_transform(np.array(x).reshape(-1, 1)).flatten().tolist() for x in sliced_series]
-#     absolute_predictions.append(reverse_series)
-
-# # perform validation
-# #------------------------------------------------------------------------------
-# validator.SCADS_validation(absolute_pressures, absolute_uptakes, absolute_predictions, model_savepath)
-
+# perform visual validation by comparing true and predicted isotherms on both 
+# the train and test datasets
+#------------------------------------------------------------------------------
+validator.visualize_predictions(true_train_pressures, true_train_uptakes, predicted_train_uptakes, 'train', eval_path)
+validator.visualize_predictions(true_test_pressures, true_test_uptakes, predicted_test_uptakes, 'test', eval_path)
 
 
 

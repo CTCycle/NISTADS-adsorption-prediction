@@ -15,7 +15,6 @@ from modules.components.data_assets import UserOperations
 ascii_art = art.text2art('SCADS modeling')
 print(ascii_art)
 
-
 # [MAIN MENU]
 #==============================================================================
 # module for the selection of different operations
@@ -32,18 +31,21 @@ while True:
     print('MAIN MENU')
     print('------------------------------------------------------------------------')
     op_sel = user_operations.menu_selection(operations_menu)
-    print()      
+    print()  
     if op_sel == 1:
+        import modules.data_validation
+        del sys.modules['modules.data_validation']     
+    elif op_sel == 2:
         import modules.model_training
         del sys.modules['modules.model_training']               
-    elif op_sel == 2:
+    elif op_sel == 3:
         import modules.model_evaluation
         del sys.modules['modules.model_evaluation']    
-    elif op_sel == 3:
+    elif op_sel == 4:
         import modules.adsorption_prediction
         del sys.modules['modules.adsorption_prediction']
-    elif op_sel == 4:
-                break
+    elif op_sel == 5:
+        break
 
 
  

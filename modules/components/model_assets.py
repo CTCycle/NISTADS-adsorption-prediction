@@ -344,12 +344,15 @@ class MaskedMeanSquaredError(keras.losses.Loss):
     def __init__(self, pad_value, reduction=keras.losses.Reduction.AUTO, name='MaskedMeanSquaredError', **kwargs):
         super(MaskedMeanSquaredError, self).__init__(reduction=reduction, name=name, **kwargs)
         self.pad_value = pad_value
+        self.mse = keras.losses.MeanSquaredError(reduction=reduction)
 
+    # implement call method 
+    #--------------------------------------------------------------------------
     def call(self, y_true, y_pred):
-        mask = tf.not_equal(y_true, self.pad_value)  
-        mask = tf.cast(mask, dtype=y_pred.dtype)  
-        loss = tf.square(y_true - y_pred) * mask 
-        loss = tf.reduce_sum(loss)/tf.reduce_sum(mask)  
+        mask = tf.not_equal(y_true, self.pad_value)       
+        y_true_masked = tf.boolean_mask(y_true, mask)
+        y_pred_masked = tf.boolean_mask(y_pred, mask)       
+        loss = self.mse(y_true_masked, y_pred_masked)
 
         return loss
     
@@ -512,9 +515,9 @@ class ModelValidation:
     
     # comparison of data distribution using statistical methods 
     #--------------------------------------------------------------------------     
-    def model_validation(self, X, Y_real, Y_predicted, plot_path):       
+    def visualize_predictions(self, X, Y_real, Y_predicted, name='Series', plot_path=None):       
 
-        fig_path = os.path.join(plot_path, 'validation_SCADS.jpeg')
+        fig_path = os.path.join(plot_path, f'Visual_validation_{name}.jpeg')
         fig, axs = plt.subplots(2, 2)       
         axs[0, 0].plot(X[0], Y_predicted[0], label='Predicted')
         axs[0, 0].plot(X[0], Y_real[0], label='Actual')         
