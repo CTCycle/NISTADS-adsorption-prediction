@@ -163,7 +163,7 @@ multiprocessing = cnf.num_processors > 1
 training = model.fit(x=train_inputs, y=train_output, batch_size=cnf.batch_size, 
                      validation_data=validation_data, epochs=cnf.epochs, 
                      verbose=1, shuffle=True, callbacks=callbacks, workers=cnf.num_processors,
-                     use_multiprocessing=True)
+                     use_multiprocessing=multiprocessing)
 
 model_files_path = os.path.join(GlobVar.model_folder_path, 'model')
 model.save(model_files_path, save_format='tf')

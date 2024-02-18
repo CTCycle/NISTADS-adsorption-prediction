@@ -2,25 +2,23 @@ import os
 import pandas as pd
 import numpy as np
 from datetime import datetime
-import matplotlib.pyplot as plt
-import seaborn as sns
-from tensorflow.keras.preprocessing.sequence import pad_sequences 
+from keras.api._v2.keras import preprocessing
 from sklearn.preprocessing import MinMaxScaler, OrdinalEncoder
 from tqdm import tqdm
 tqdm.pandas()
+
 
 # [USER OPERATIONS]
 #==============================================================================
 # ...
 #==============================================================================
-class UserOperations:
-    
+class UserOperations:    
         
     # print custom menu on console and allows selecting an option
     #--------------------------------------------------------------------------
     def menu_selection(self, menu):        
         
-        """        
+        '''        
         menu_selection(menu)
         
         Presents a custom menu to the user and returns the selected option.
@@ -33,7 +31,7 @@ class UserOperations:
         Returns:            
             op_sel (int): The selected option number.
         
-        """        
+        '''        
         indexes = [idx + 1 for idx, val in enumerate(menu)]
         for key, value in menu.items():
             print('{0} - {1}'.format(key, value))            
@@ -252,8 +250,8 @@ class PreProcessing:
             list: A list of normalized values
         
         '''
-        processed_series = pad_sequences([sequence], maxlen=pad_length, value=pad_value, 
-                                         dtype = 'float32', padding = 'post')
+        processed_series = preprocessing.sequence.pad_sequences([sequence], maxlen=pad_length, value=pad_value, 
+                                                                dtype='float32', padding = 'post')
         pp_seq = processed_series[0]        
         pp_seq = ' '.join([str(x) for x in pp_seq])
 
@@ -303,133 +301,3 @@ class PreProcessing:
         return model_folder_path
           
 
-# [CORRELATIONS]
-#==============================================================================
-# ...
-#==============================================================================
-class MultiCorrelator:
-    
-    ''' 
-    MultiCorrelator(dataframe)
-    
-    Calculates the correlation matrix of a given dataframe using specific methods.
-    The internal functions retrieves correlations based on Pearson, Spearman and Kendall
-    methods. This class is also used to plot the correlation heatmap and filter correlations
-    from the original matrix based on given thresholds. Returns the correlation matrix
-    
-    Keyword arguments: 
-        
-    dataframe (pd.dataframe): target dataframe
-    
-    Returns:
-        
-    df_corr (pd.dataframe): correlation matrix in dataframe form
-                
-    '''
-    def __init__(self, dataframe):
-        self.dataframe = dataframe
-        
-    # Spearman correlation calculation
-    #==========================================================================
-    def Spearman_corr(self, decimals):
-        self.df_corr = self.dataframe.corr(method = 'spearman').round(decimals)
-        return self.df_corr
-    
-    # Kendall correlation calculation
-    #==========================================================================    
-    def Kendall_corr(self, decimals):
-        self.df_corr = self.dataframe.corr(method = 'kendall').round(decimals)
-        return self.df_corr
-    
-    # Pearson correlation calculation
-    #==========================================================================   
-    def Pearson_corr(self, decimals):
-        self.df_corr = self.dataframe.corr(method = 'pearson').round(decimals)
-        return self.df_corr
-    
-    # plotting correlation heatmap using seaborn package
-    #==========================================================================
-    def corr_heatmap(self, matrix, path, dpi, name):
-        
-        ''' 
-        corr_heatmap(matrix, path, dpi, name)
-        
-        Plot the correlation heatmap using the seaborn package. The plot is saved 
-        in .jpeg format in the folder that is specified through the path argument. 
-        Output quality can be tuned with the dpi argument.
-        
-        Keyword arguments:    
-            
-        matrix (pd.dataframe): target correlation matrix
-        path (str):            picture save path for the .jpeg file
-        dpi (int):             value to set picture quality when saved (int)
-        name (str):            name to be added in title and filename
-        
-        Returns:
-            
-        None
-            
-        '''                
-        cmap = 'viridis'
-        fig, ax = plt.subplots(figsize=(10, 10))
-        sns.heatmap(matrix, square = True, annot = False, 
-                    mask = False, cmap = cmap, yticklabels = True, 
-                    xticklabels = True)
-        plt.title('{}_correlation_heatmap'.format(name))
-        plt.xticks(rotation=75, fontsize=8) 
-        plt.yticks(rotation=45, fontsize=8) 
-        plt.tight_layout()
-        plot_loc = os.path.join(path, '{}_correlation_heatmap.jpeg'.format(name))
-        plt.savefig(plot_loc, bbox_inches='tight', format ='jpeg', dpi = dpi)
-        plt.show(block = False)
-        plt.close()    
-     
-    # filtering of correlation pairs based on threshold value. Strong, weak and null
-    # pairs are isolated and embedded into output lists
-    #==========================================================================   
-    def corr_filter(self, matrix, threshold): 
-        
-        '''
-        corr_filter(matrix, path, dpi)
-        
-        Generates filtered lists of correlation pairs, based on the given threshold.
-        Weak correlations are those below the threshold, strong correlations are those
-        above the value and zero correlations identifies all those correlation
-        with coefficient equal to zero. Returns the strong, weak and zero pairs lists
-        respectively.
-        
-        Keyword arguments:    
-        matrix (pd.dataframe): target correlation matrix
-        threshold (float):     threshold value to filter correlations coefficients
-        
-        Returns:
-            
-        strong_pairs (list): filtered strong pairs
-        weak_pairs (list):   filtered weak pairs
-        zero_pairs (list):   filtered zero pairs
-                       
-        '''        
-        self.corr_pairs = matrix.unstack()
-        self.sorted_pairs = self.corr_pairs.sort_values(kind="quicksort")
-        self.strong_pairs = self.sorted_pairs[(self.sorted_pairs) >= threshold]
-        self.strong_pairs = self.strong_pairs.reset_index(level = [0,1])
-        mask = (self.strong_pairs.level_0 != self.strong_pairs.level_1) 
-        self.strong_pairs = self.strong_pairs[mask]
-        
-        self.weak_pairs = self.sorted_pairs[(self.sorted_pairs) >= -threshold]
-        self.weak_pairs = self.weak_pairs.reset_index(level = [0,1])
-        mask = (self.weak_pairs.level_0 != self.weak_pairs.level_1) 
-        self.weak_pairs = self.weak_pairs[mask]
-        
-        self.zero_pairs = self.sorted_pairs[(self.sorted_pairs) == 0]
-        self.zero_pairs = self.zero_pairs.reset_index(level = [0,1])
-        mask = (self.zero_pairs.level_0 != self.zero_pairs.level_1) 
-        self.zero_pairs_P = self.zero_pairs[mask]
-        
-        return self.strong_pairs, self.weak_pairs, self.zero_pairs
-    
-
-
-
-
-  
