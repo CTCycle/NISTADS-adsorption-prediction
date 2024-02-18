@@ -8,9 +8,9 @@ num_processors = 6
 
 # Settings for training routine
 #------------------------------------------------------------------------------
-epochs = 2000
-learning_rate = 0.0005
-batch_size = 1024
+epochs = 2500
+learning_rate = 0.0001
+batch_size = 512
 
 # Model settings
 #------------------------------------------------------------------------------

@@ -7,7 +7,6 @@ from tensorflow import keras
 from keras import backend as K
 from keras.models import Model
 from keras import layers
-from tensorflow.keras.utils import register_keras_serializable
                    
 
 # [CALLBACK FOR REAL TIME TRAINING MONITORING]
@@ -61,7 +60,7 @@ class RealTimeHistory(keras.callbacks.Callback):
 #==============================================================================
 # Parametrizer custom layer
 #==============================================================================
-@register_keras_serializable(package='CustomLayers', name='Parametrizer')
+@keras.utils.register_keras_serializable(package='CustomLayers', name='Parametrizer')
 class Parametrizer(layers.Layer):
     def __init__(self, **kwargs):
         super(Parametrizer, self).__init__(**kwargs)        
@@ -89,6 +88,8 @@ class Parametrizer(layers.Layer):
         config.update({})
         return config
 
+    # deserialization method  
+    #--------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)
@@ -98,7 +99,7 @@ class Parametrizer(layers.Layer):
 #==============================================================================
 # Custom layer
 #============================================================================== 
-@register_keras_serializable(package='CustomLayers', name='BNFeedForward')
+@keras.utils.register_keras_serializable(package='CustomLayers', name='BNFeedForward')
 class BNFeedForward(layers.Layer):
     def __init__(self, units, seed=42, dropout=0.1, **kwargs):
         super(BNFeedForward, self).__init__(**kwargs)
@@ -127,6 +128,8 @@ class BNFeedForward(layers.Layer):
                        'dropout': self.dropout})
         return config
 
+    # deserialization method  
+    #--------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)      
@@ -136,7 +139,7 @@ class BNFeedForward(layers.Layer):
 #==============================================================================
 # Custom layer
 #============================================================================== 
-@register_keras_serializable(package='Encoders', name='GHEncoder')
+@keras.utils.register_keras_serializable(package='Encoders', name='GHEncoder')
 class GHEncoder(layers.Layer):
     def __init__(self, gvocab_size, hvocab_size, embedding_dims, seed=42, **kwargs):
         super(GHEncoder, self).__init__(**kwargs)
@@ -177,6 +180,8 @@ class GHEncoder(layers.Layer):
                        'seed': self.seed})
         return config
 
+    # deserialization method  
+    #--------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)
@@ -186,7 +191,7 @@ class GHEncoder(layers.Layer):
 #==============================================================================
 # Custom layer
 #============================================================================== 
-@register_keras_serializable(package='Encoders', name='PressureEncoder')
+@keras.utils.register_keras_serializable(package='Encoders', name='PressureEncoder')
 class PressureEncoder(layers.Layer):
 
     def __init__(self, pad_value=-1, seed=42, **kwargs):
@@ -233,6 +238,8 @@ class PressureEncoder(layers.Layer):
                        'seed': self.seed})
         return config
 
+    # deserialization method  
+    #--------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)
@@ -242,7 +249,7 @@ class PressureEncoder(layers.Layer):
 #==============================================================================
 # Custom layer
 #============================================================================== 
-@register_keras_serializable(package='Decoder', name='QDecoder')
+@keras.utils.register_keras_serializable(package='Decoder', name='QDecoder')
 class QDecoder(layers.Layer):
     def __init__(self, seq_length, seed=42, **kwargs):
         super(QDecoder, self).__init__(**kwargs)
@@ -282,6 +289,8 @@ class QDecoder(layers.Layer):
                        'seed': self.seed})
         return config
 
+    # deserialization method  
+    #--------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config) 
@@ -339,7 +348,7 @@ class SCADSModel:
 #==============================================================================
 # collection of model and submodels
 #==============================================================================
-@register_keras_serializable(package='CustomLoss', name='MaskedMeanSquaredError')
+@keras.utils.register_keras_serializable(package='CustomLoss', name='MaskedMeanSquaredError')
 class MaskedMeanSquaredError(keras.losses.Loss):
     def __init__(self, pad_value, reduction=keras.losses.Reduction.AUTO, name='MaskedMeanSquaredError', **kwargs):
         super(MaskedMeanSquaredError, self).__init__(reduction=reduction, name=name, **kwargs)
@@ -363,9 +372,12 @@ class MaskedMeanSquaredError(keras.losses.Loss):
         config.update({'pad_value': self.pad_value})
         return config
 
+    # deserialization method  
+    #--------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
-        return cls(**config) 
+        return cls(**config)
+     
 
 # [TRAINING OPTIONS]
 #==============================================================================

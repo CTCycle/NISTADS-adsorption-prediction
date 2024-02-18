@@ -43,7 +43,8 @@ sorb_col = ['adsorbates_name']
 P_col = 'pressure_in_Pascal'
 Q_col = 'uptake_in_mol/g'
 
-# load preprocessing module
+# load preprocessing module, current model folder will be saved as global variable
+# and subsequently fetched as GlobVar.model_folder_path
 #------------------------------------------------------------------------------
 import modules.data_preprocessing
 
@@ -172,7 +173,6 @@ print(f'''
 Training session is over. Model has been saved in folder {GlobVar.model_folder_name}
 -------------------------------------------------------------------------------
 ''')
-
        
 # save model data and model parameters in txt files
 #------------------------------------------------------------------------------
