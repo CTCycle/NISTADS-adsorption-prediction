@@ -456,6 +456,11 @@ class ModelTraining:
 #==============================================================================
 class Inference:
 
+    def __init__(self, seed):
+        self.seed = seed
+        np.random.seed(seed)
+        tf.random.set_seed(seed)  
+
     #-------------------------------------------------------------------------- 
     def load_pretrained_model(self, path):
 

@@ -37,7 +37,7 @@ Q_col = 'uptake_in_mol/g'
 
 # load the model for inference and print summary
 #------------------------------------------------------------------------------
-inference = Inference() 
+inference = Inference(cnf.seed) 
 model, parameters = inference.load_pretrained_model(GlobVar.models_path)
 model_path = inference.folder_path
 model.summary(expand_nested=True)
@@ -116,10 +116,8 @@ test_inputs = [test_X[features], test_X[ads_col], test_X[sorb_col], test_pressur
 
 # evaluate model performance on train and test datasets
 #------------------------------------------------------------------------------
-train_eval = model.evaluate(x=train_inputs, y=train_output, batch_size=512, 
-                            verbose=1, workers=6, use_multiprocessing=True)
-test_eval = model.evaluate(x=test_inputs, y=test_output, batch_size=512, 
-                           verbose=1, workers=6, use_multiprocessing=True)
+train_eval = model.evaluate(x=train_inputs, y=train_output, batch_size=512, verbose=1)
+test_eval = model.evaluate(x=test_inputs, y=test_output, batch_size=512, verbose=1)
 
 print(f'''
 -------------------------------------------------------------------------------
