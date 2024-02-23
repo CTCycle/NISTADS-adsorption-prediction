@@ -9,15 +9,14 @@ import pickle
 import warnings
 warnings.simplefilter(action='ignore', category = Warning)
 
-# add modules to sys path
+# add parent folder path to the namespace
 #------------------------------------------------------------------------------
-if __name__ == '__main__':
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..')) 
 
 # import modules and classes
 #------------------------------------------------------------------------------
-from modules.components.model_assets import Inference, ModelValidation
-import modules.global_variables as GlobVar
+from components.model_assets import Inference, ModelValidation
+import components.global_paths as globpt
 import configurations as cnf
 
 # [LOAD MODEL AND DATA]

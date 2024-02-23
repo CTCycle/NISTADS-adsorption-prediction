@@ -12,17 +12,26 @@ The NIST/ARPA-E Database of Novel and Emerging Adsorbent Materials is a free, we
 The data used for the machine learning training has been extracted using another python application I wrote togehter with this one (see https://github.com/CTCycle/NISTADS-data-collection), which makes use of the NIST/ARPA-E Database API to collect adsorption isotherm data for both single component experiments and binary mixture experiments. This application also perform chemical data mining to enrich the input with physicochemical features for the sorbates included in the adsorption isotherm dataset. NISTADSMOD is focused on predicting single component adsorption isotherms, therefor it will use the single component dataset as input data for the deep learning model training and evaluation.
 
 ## How to use
-Run the NISTADSMOD.py file to launch the script and use the main menu to navigate the different options. From the main menu, you can select one of the following options:
+Within the project folder, you'll find several key subfolders:
 
-**1) Dataset validation** evaluate the adsorption dataset, analyze data distribution and statistics
+**Components**
+This directory serves as the home for fundamental files crucial for the flawless operation of the program. It's imperative not to tamper with these files as any modifications could jeopardize the script's integrity.
 
-**2) SCADS model training** train the single component adsorption (SCADS) model
+**Data**
+This folder hosts the data utilized for both model training and evaluation purposes. The main files referred to in this location are:
+- `adsorbates_dataset.csv` provides information about the adsorbates species
+- `adsorbents_dataset.csv` provides information about the adsorbent materials
+- `SCADS_dataset.csv` contains the data that will be used for SCADS training
+Execute `data_validation.py` to conduct an in-depth analysis leveraging the adsorption isotherm dataset.
 
-**3) Model evaluation** evaluate performance of pretrained models
+**Model**
+Contained within this repository are the necessary files for conducting model training and evaluation, especially for pre-trained models:
+- `model/checkpoints` acts as the default repository where checkpoints of pre-trained models are stored.
+- Run `model_training.py` to initiate the training process for deep learning models.
+- Run `model_evaluation.py` to evaluate the performance metrics of pre-trained models.
 
-**4) Predict adsorption with pretrained model** predict adsorption using a pretrained SCADS model
-
-**5) Exit and close**
+**Inference**
+Use `adsorption_predictions.py` from this directory to predict adsorption given empirical pressure series and parameters. The predicted values are saved in `SCADS_predictions.py`. 
 
 ### Configurations
 The configurations.py file allows to change the script configuration. The following parameters are available:

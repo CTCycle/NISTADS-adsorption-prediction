@@ -9,36 +9,42 @@ import pickle
 import warnings
 warnings.simplefilter(action='ignore', category = Warning)
 
-# add modules to sys path
+# add parent folder path to the namespace
 #------------------------------------------------------------------------------
-if __name__ == '__main__':
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..')) 
 
 # import modules and classes
 #------------------------------------------------------------------------------
-from modules.components.data_assets import PreProcessing
-from modules.components.model_assets import Inference, ModelValidation
-import modules.global_variables as GlobVar
+from components.data_assets import PreProcessing
+from components.model_assets import Inference, ModelValidation
+import components.global_paths as globpt
 import configurations as cnf
+
+# specify relative paths from global paths and create subfolders
+#------------------------------------------------------------------------------
+cp_path = os.path.join(globpt.model_path, 'checkpoints')
+os.mkdir(cp_path) if not os.path.exists(cp_path) else None
+
 
 # [LOAD MODEL AND DATA]
 #==============================================================================
-# Load data and models
 #==============================================================================
 
-# identify columns
+# define column names
 #------------------------------------------------------------------------------
+valid_units = ['mmol/g', 'mol/kg', 'mol/g', 'mmol/kg', 'mg/g', 'g/g', 
+               'wt%', 'g Adsorbate / 100g Adsorbent', 'g/100g', 'ml(STP)/g', 
+               'cm3(STP)/g']
 features = ['temperature', 'mol_weight', 'complexity', 'covalent_units', 
             'H_acceptors', 'H_donors', 'heavy_atoms']
-ads_col = ['adsorbent_name'] 
-sorb_col = ['adsorbates_name']
-P_col = 'pressure_in_Pascal'
-Q_col = 'uptake_in_mol/g'
+ads_col, sorb_col  = ['adsorbent_name'], ['adsorbates_name'] 
+P_col, Q_col  = 'pressure_in_Pascal', 'uptake_in_mol/g'
+P_unit_col, Q_unit_col  = 'pressureUnits', 'adsorptionUnits'
 
 # load the model for inference and print summary
 #------------------------------------------------------------------------------
 inference = Inference(cnf.seed) 
-model, parameters = inference.load_pretrained_model(GlobVar.models_path)
+model, parameters = inference.load_pretrained_model(cp_path)
 model_path = inference.folder_path
 model.summary(expand_nested=True)
 
@@ -74,8 +80,6 @@ with open(filepath, 'rb') as file:
 
 # [PERFORM QUICK EVALUATION]
 #==============================================================================
-# Training the LSTM model using the functions specified in the designated class.
-# The model is saved in .h5 format at the end of the training
 #==============================================================================        
 print(f'''
 -------------------------------------------------------------------------------
@@ -92,8 +96,7 @@ validator = ModelValidation(model)
 # create subfolder for evaluation data
 #------------------------------------------------------------------------------
 eval_path = os.path.join(model_path, 'evaluation') 
-if not os.path.exists(eval_path):
-    os.mkdir(eval_path)
+os.mkdir(pp_path) if not os.path.exists(pp_path) else None
 
 # convert pressure and uptake sequences from strings to array of floats
 #------------------------------------------------------------------------------

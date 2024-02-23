@@ -171,9 +171,7 @@ class PreProcessing:
         '''
         columns = ['temperature', 'mol_weight', 'complexity', 'heavy_atoms']
 
-        # cast float type for both the labels and the continuous features columns
-        train_Y = [[float(value) for value in row] for row in train_Y]
-        test_Y = [[float(value) for value in row] for row in test_Y]
+        # cast float type for both the labels and the continuous features columns        
         train_X[columns] = train_X[columns].astype(float)        
         test_X[columns] = test_X[columns].astype(float)
         
@@ -198,13 +196,13 @@ class PreProcessing:
         # flatten and reshape array of arrays to make it compatible with the MinMaxScaler
         # use apply to transform each array
         column = 'uptake_in_mol/g'
-        uptake_array = [item for sublist in train_Y for item in sublist]
+        uptake_array = [item for sublist in train_Y[column] for item in sublist]
         uptake_array = np.array(uptake_array).reshape(-1, 1)
 
         self.uptake_normalizer = MinMaxScaler(feature_range=(0, 1))
         self.uptake_normalizer.fit(uptake_array)
-        train_Y = [self.uptake_normalizer.transform(np.array(x).reshape(-1, 1)).flatten() for x in train_Y]
-        test_Y = [self.uptake_normalizer.transform(np.array(x).reshape(-1, 1)).flatten() for x in test_Y]
+        train_Y = train_Y[column].apply(lambda x: self.uptake_normalizer.transform(np.array(x).reshape(-1, 1)).flatten())
+        test_Y = test_Y[column].apply(lambda x: self.uptake_normalizer.transform(np.array(x).reshape(-1, 1)).flatten())
 
         return train_X, train_Y, test_X, test_Y    
     
@@ -236,7 +234,7 @@ class PreProcessing:
 
         return train_X, test_X         
     
-    # preprocessing model for tabular data using Keras pipeline    
+    
     #--------------------------------------------------------------------------  
     def sequence_padding(self, sequence, pad_value=0, pad_length=50):
 
@@ -251,9 +249,8 @@ class PreProcessing:
         
         '''
         processed_series = preprocessing.sequence.pad_sequences([sequence], maxlen=pad_length, value=pad_value, 
-                                                                dtype='float32', padding = 'post')
-        pp_seq = processed_series[0]        
-        pp_seq = ' '.join([str(x) for x in pp_seq])
+                                                                dtype='float32', padding='post')
+        pp_seq = [x for x in processed_series[0]]    
 
         return pp_seq 
 
