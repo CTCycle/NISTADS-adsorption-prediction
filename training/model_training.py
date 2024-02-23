@@ -27,7 +27,7 @@ import configurations as cnf
 
 # specify relative paths from global paths and create subfolders
 #------------------------------------------------------------------------------
-cp_path = os.path.join(globpt.model_path, 'checkpoints')
+cp_path = os.path.join(globpt.train_path, 'checkpoints')
 os.mkdir(cp_path) if not os.path.exists(cp_path) else None
 
 # [PREPROCESS DATA]
