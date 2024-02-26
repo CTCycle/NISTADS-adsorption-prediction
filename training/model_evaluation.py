@@ -29,17 +29,6 @@ os.mkdir(cp_path) if not os.path.exists(cp_path) else None
 #==============================================================================
 #==============================================================================
 
-# define column names
-#------------------------------------------------------------------------------
-valid_units = ['mmol/g', 'mol/kg', 'mol/g', 'mmol/kg', 'mg/g', 'g/g', 
-               'wt%', 'g Adsorbate / 100g Adsorbent', 'g/100g', 'ml(STP)/g', 
-               'cm3(STP)/g']
-features = ['temperature', 'mol_weight', 'complexity', 'covalent_units', 
-            'H_acceptors', 'H_donors', 'heavy_atoms']
-ads_col, sorb_col  = ['adsorbent_name'], ['adsorbates_name'] 
-P_col, Q_col  = 'pressure_in_Pascal', 'uptake_in_mol/g'
-P_unit_col, Q_unit_col  = 'pressureUnits', 'adsorptionUnits'
-
 # load the model for inference and print summary
 #------------------------------------------------------------------------------
 inference = Inference(cnf.seed) 
@@ -95,14 +84,14 @@ validator = ModelValidation(model)
 # create subfolder for evaluation data
 #------------------------------------------------------------------------------
 eval_path = os.path.join(model_path, 'evaluation') 
-os.mkdir(pp_path) if not os.path.exists(pp_path) else None
+os.mkdir(eval_path) if not os.path.exists(eval_path) else None
 
 # convert pressure and uptake sequences from strings to array of floats
 #------------------------------------------------------------------------------
-train_pressure = train_X[P_col].apply(lambda x: np.array([float(val) for val in x.split()]))
-test_pressure = test_X[P_col].apply(lambda x: np.array([float(val) for val in x.split()]))
-train_output = train_Y[Q_col].apply(lambda x: np.array([float(val) for val in x.split()]))
-test_output = test_Y[Q_col].apply(lambda x: np.array([float(val) for val in x.split()]))
+train_pressure = train_X[preprocessor.P_col].apply(lambda x: np.array([float(val) for val in x.split()]))
+test_pressure = test_X[preprocessor.P_col].apply(lambda x: np.array([float(val) for val in x.split()]))
+train_output = train_Y[preprocessor.Q_col].apply(lambda x: np.array([float(val) for val in x.split()]))
+test_output = test_Y[preprocessor.Q_col].apply(lambda x: np.array([float(val) for val in x.split()]))
 
 # Reshape sequences of pressure and uptakes to 2D arrays 
 #------------------------------------------------------------------------------
@@ -113,8 +102,8 @@ test_output = np.stack(test_output.values)
 
 # define train and test inputs
 #------------------------------------------------------------------------------
-train_inputs = [train_X[features], train_X[ads_col], train_X[sorb_col], train_pressure]
-test_inputs = [test_X[features], test_X[ads_col], test_X[sorb_col], test_pressure]
+train_inputs = [train_X[preprocessor.features], train_X[preprocessor.ads_col], train_X[preprocessor.sorb_col], train_pressure]
+test_inputs = [test_X[preprocessor.features], test_X[preprocessor.ads_col], test_X[preprocessor.sorb_col], test_pressure]
 
 # evaluate model performance on train and test datasets
 #------------------------------------------------------------------------------

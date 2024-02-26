@@ -58,6 +58,17 @@ class UserOperations:
 # preprocess adsorption data
 #==============================================================================
 class PreProcessing:   
+
+
+    def __init__(self):
+        self.valid_units = ['mmol/g', 'mol/kg', 'mol/g', 'mmol/kg', 'mg/g', 'g/g', 
+                            'wt%', 'g Adsorbate / 100g Adsorbent', 'g/100g', 'ml(STP)/g', 
+                            'cm3(STP)/g']
+        self.features = ['temperature', 'mol_weight', 'complexity', 'covalent_units', 
+                    'H_acceptors', 'H_donors', 'heavy_atoms']
+        self.ads_col, self.sorb_col  = ['adsorbent_name'], ['adsorbates_name'] 
+        self.P_col, self.Q_col  = 'pressure_in_Pascal', 'uptake_in_mol/g'
+        self.P_unit_col, self.Q_unit_col  = 'pressureUnits', 'adsorptionUnits'
     
 
     #--------------------------------------------------------------------------

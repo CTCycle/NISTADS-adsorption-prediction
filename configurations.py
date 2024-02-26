@@ -1,14 +1,14 @@
 # Advanced settings for training 
 #------------------------------------------------------------------------------
 use_mixed_precision = False
-use_tensorboard = True
+use_tensorboard = False
 XLA_acceleration = False
 training_device = 'GPU'
 num_processors = 6
 
 # Settings for training routine
 #------------------------------------------------------------------------------
-epochs = 2500
+epochs = 10
 learning_rate = 0.0001
 batch_size = 800
 

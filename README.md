@@ -18,14 +18,14 @@ Within the project folder, you'll find several key subfolders:
 This directory serves as the home for fundamental files crucial for the flawless operation of the program. It's imperative not to tamper with these files as any modifications could jeopardize the script's integrity.
 
 **Data**
-This folder hosts the data utilized for both model training and evaluation purposes. The main files referred to in this location are:
+This folder contains the data utilized for the model training. The data that should be located in this folder has been collected using another repository (https://github.com/CTCycle/NISTADS-data-collection), which is focused on gathering adsorption isotherm data from the NIST Adsorption Database. The main files present in this location are:
 - `adsorbates_dataset.csv` provides information about the adsorbates species
 - `adsorbents_dataset.csv` provides information about the adsorbent materials
 - `SCADS_dataset.csv` contains the data that will be used for SCADS training
 Execute `data_validation.py` to conduct an in-depth analysis leveraging the adsorption isotherm dataset.
 
 **Model**
-Contained within this repository are the necessary files for conducting model training and evaluation, especially for pre-trained models:
+In this folder are the necessary files for conducting model training and evaluation:
 - `model/checkpoints` acts as the default repository where checkpoints of pre-trained models are stored.
 - Run `model_training.py` to initiate the training process for deep learning models.
 - Run `model_evaluation.py` to evaluate the performance metrics of pre-trained models.

@@ -41,17 +41,6 @@ This module analyses the NIST adsorption dataset obtained by extracting data fro
 NIST database online. The procedure will be separately performed on the single 
 component isotherm dataset''')
 
-# define column names
-#------------------------------------------------------------------------------
-valid_units = ['mmol/g', 'mol/kg', 'mol/g', 'mmol/kg', 'mg/g', 'g/g', 
-               'wt%', 'g Adsorbate / 100g Adsorbent', 'g/100g', 'ml(STP)/g', 
-               'cm3(STP)/g']
-features = ['temperature', 'mol_weight', 'complexity', 'covalent_units', 
-            'H_acceptors', 'H_donors', 'heavy_atoms']
-ads_col, sorb_col  = ['adsorbent_name'], ['adsorbates_name'] 
-P_col, Q_col  = 'pressure_in_Pascal', 'uptake_in_mol/g'
-P_unit_col, Q_unit_col  = 'pressureUnits', 'adsorptionUnits'
-
 # create model folder and subfolder for preprocessed data 
 #------------------------------------------------------------------------------
 preprocessor = PreProcessing()
@@ -78,22 +67,27 @@ dataset = preprocessor.guest_properties(df_adsorption, df_adsorbates)
 
 # filter experiments by allowed uptake units
 #------------------------------------------------------------------------------ 
-dataset = dataset[dataset[Q_unit_col].isin(valid_units)]
+dataset = dataset[dataset[preprocessor.Q_unit_col].isin(preprocessor.valid_units)]
 
 # filter experiments by allowed uptake units and convert pressure and uptake 
 # to Pa (pressure) and mol/kg (uptake) 
 #------------------------------------------------------------------------------ 
-dataset = dataset[dataset[Q_unit_col].isin(valid_units)]
-dataset[P_col] = dataset.progress_apply(lambda x : preprocessor.pressure_converter(x[P_unit_col], x['pressure']), axis = 1)
-dataset[Q_col] = dataset.progress_apply(lambda x : preprocessor.uptake_converter(x[Q_unit_col], x['adsorbed_amount'], x['mol_weight']), axis = 1)
-print()
+dataset = dataset[dataset[preprocessor.Q_unit_col].isin(preprocessor.valid_units)]
+dataset[preprocessor.P_col] = dataset.progress_apply(lambda x : preprocessor.pressure_converter(x[preprocessor.P_unit_col], 
+                                                                                                x['pressure']), 
+                                                                                                axis = 1)
+dataset[preprocessor.Q_col] = dataset.progress_apply(lambda x : preprocessor.uptake_converter(x[preprocessor.Q_unit_col], 
+                                                                                              x['adsorbed_amount'], 
+                                                                                              x['mol_weight']), 
+                                                                                              axis = 1)
+
 
 # filter the dataset to remove experiments with units are outside desired boundaries, 
 # such as experiments with negative values of temperature, pressure and uptake
 #------------------------------------------------------------------------------ 
 dataset = dataset[dataset['temperature'].astype(int) > 0]
-dataset = dataset[dataset[P_col].astype(float).between(0.0, cnf.max_pressure)]
-dataset = dataset[dataset[Q_col].astype(float).between(0.0, cnf.max_uptake)]
+dataset = dataset[dataset[preprocessor.P_col].astype(float).between(0.0, cnf.max_pressure)]
+dataset = dataset[dataset[preprocessor.Q_col].astype(float).between(0.0, cnf.max_uptake)]
 
 # Aggregate values using groupby function in order to group the dataset by experiments
 #------------------------------------------------------------------------------ 
@@ -117,7 +111,7 @@ total_num_exp = dataset_grouped.shape[0]
 # remove series of pressure/uptake with less than X points, drop rows containing nan
 # values and select a subset of samples for training
 #------------------------------------------------------------------------------ 
-dataset_grouped = dataset_grouped[dataset_grouped[P_col].apply(lambda x: len(x)) >= cnf.min_points]
+dataset_grouped = dataset_grouped[dataset_grouped[preprocessor.P_col].apply(lambda x: len(x)) >= cnf.min_points]
 dataset_grouped = dataset_grouped.dropna()
 
 # check to avoid errors when selecting number of samples higher than effectively 
@@ -128,12 +122,12 @@ if cnf.num_samples < total_num_exp:
 # check pressure and uptake series and force them to converge at zero at the beginning: 
 # f(x) = 0 for x = 0
 #------------------------------------------------------------------------------
-dataset_grouped = dataset_grouped.apply(preprocessor.zero_convergence, args=(P_col, Q_col), axis=1)
+dataset_grouped = dataset_grouped.apply(preprocessor.zero_convergence, args=(preprocessor.P_col, preprocessor.Q_col), axis=1)
 
 # split train and test dataset
 #------------------------------------------------------------------------------ 
-inputs = dataset_grouped[[x for x in dataset_grouped.columns if x != Q_col]]
-labels = dataset_grouped[Q_col]
+inputs = dataset_grouped[[x for x in dataset_grouped.columns if x != preprocessor.Q_col]]
+labels = dataset_grouped[preprocessor.Q_col]
 train_X, test_X, train_Y, test_Y = train_test_split(inputs, labels, test_size=cnf.test_size, 
                                                     random_state=cnf.seed, shuffle=True, stratify=None) 
 
@@ -159,8 +153,8 @@ guest_encoder = preprocessor.guest_encoder
 
 # apply padding to the pressure and uptake series
 #------------------------------------------------------------------------------ 
-train_X[P_col] = train_X[P_col].apply(lambda x : preprocessor.sequence_padding(x, pad_length=cnf.pad_length, pad_value=cnf.pad_value))
-test_X[P_col] = test_X[P_col].apply(lambda x : preprocessor.sequence_padding(x, pad_length=cnf.pad_length, pad_value=cnf.pad_value))
+train_X[preprocessor.P_col] = train_X[preprocessor.P_col].apply(lambda x : preprocessor.sequence_padding(x, pad_length=cnf.pad_length, pad_value=cnf.pad_value))
+test_X[preprocessor.P_col] = test_X[preprocessor.P_col].apply(lambda x : preprocessor.sequence_padding(x, pad_length=cnf.pad_length, pad_value=cnf.pad_value))
 train_Y = train_Y.apply(lambda x : preprocessor.sequence_padding(x, pad_length=cnf.pad_length, pad_value=cnf.pad_value))
 test_Y = test_Y.apply(lambda x : preprocessor.sequence_padding(x, pad_length=cnf.pad_length, pad_value=cnf.pad_value))
 
@@ -200,18 +194,26 @@ encoder_path = os.path.join(pp_path, 'guest_encoder.pkl')
 with open(encoder_path, 'wb') as file:
     pickle.dump(guest_encoder, file) 
 
-
-# transform data into dataframe and then save as .csv
+# create deep copy of the dataframes to avoid modifying the original data.
+# the copies will be used to save the preprocessed data (this way the sequences
+# of pressur and uptakes can be converted to a single string per row)
 #------------------------------------------------------------------------------
 file_loc = os.path.join(pp_path, 'train_X.csv')
-train_X.to_csv(file_loc, index=False, sep=';', encoding='utf-8')
+train_X_csv = train_X.copy(deep=True)
+train_X_csv[preprocessor.P_col] = train_X_csv[preprocessor.P_col].apply(lambda x : ' '.join([str(f) for f in x]))
+train_X_csv.to_csv(file_loc, index=False, sep=';', encoding='utf-8')
 file_loc = os.path.join(pp_path, 'train_Y.csv')
-train_Y.to_csv(file_loc, index=False, sep=';', encoding='utf-8')
+train_Y_csv = train_Y.copy(deep=True)
+train_Y_csv = train_Y_csv.apply(lambda x : ' '.join([str(f) for f in x]))
+train_Y_csv.to_csv(file_loc, index=False, sep=';', encoding='utf-8')
 file_loc = os.path.join(pp_path, 'test_X.csv')
-test_X.to_csv(file_loc, index=False, sep=';', encoding='utf-8')
+test_X_csv = test_X.copy(deep=True)
+test_X_csv[preprocessor.P_col] = test_X_csv[preprocessor.P_col].apply(lambda x : ' '.join([str(f) for f in x]))
+test_X_csv.to_csv(file_loc, index=False, sep=';', encoding='utf-8')
 file_loc = os.path.join(pp_path, 'test_Y.csv')
-test_Y.to_csv(file_loc, index=False, sep=';', encoding='utf-8')
-
+test_Y_csv = test_Y.copy(deep=True)
+test_Y_csv = test_Y_csv.apply(lambda x : ' '.join([str(f) for f in x]))
+test_Y_csv.to_csv(file_loc, index=False, sep=';', encoding='utf-8')
 
 # [BUILD SCADS MODEL]
 #==============================================================================
@@ -230,7 +232,7 @@ trainer = ModelTraining(device=cnf.training_device, use_mixed_precision=cnf.use_
 
 # determine number of classes and features, then initialize and build the model
 #------------------------------------------------------------------------------
-num_features = len(features)   
+num_features = len(preprocessor.features)   
 unique_adsorbents, unique_sorbates = len(host_encoder.categories_[0]), len(guest_encoder.categories_[0]) 
 modelworker = SCADSModel(cnf.learning_rate, num_features, cnf.pad_length, 
                          cnf.pad_value, unique_adsorbents, unique_sorbates, 
@@ -260,14 +262,14 @@ RTH_callback = RealTimeHistory(model_folder_path, validation=True)
 
 # Reshape sequences of pressure and uptakes to 2D arrays and create list of inputs
 #------------------------------------------------------------------------------
-train_pressure = np.stack(train_X[P_col].values)
-test_pressure = np.stack(test_X[P_col].values)
+train_pressure = np.stack(train_X[preprocessor.P_col].values)
+test_pressure = np.stack(test_X[preprocessor.P_col].values)
 train_output = np.stack(train_Y.values)
 test_output = np.stack(test_Y.values)
 
-train_inputs = [train_X[features], train_X[ads_col], train_X[sorb_col], train_pressure]
-test_inputs = [test_X[features], test_X[ads_col], test_X[sorb_col], test_pressure]
-
+# create list of inputs for both train and test datasets
+train_inputs = [train_X[preprocessor.features], train_X[preprocessor.ads_col], train_X[preprocessor.sorb_col], train_pressure]
+test_inputs = [test_X[preprocessor.features], test_X[preprocessor.ads_col], test_X[preprocessor.sorb_col], test_pressure]
 validation_data = (test_inputs, test_output)  
 
 # initialize tensorboard
