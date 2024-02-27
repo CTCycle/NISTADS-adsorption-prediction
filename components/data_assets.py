@@ -272,22 +272,7 @@ class PreProcessing:
                                                                dtype='float32', 
                                                                padding='post').tolist()           
 
-        return dataset
-
-    #--------------------------------------------------------------------------
-    def create_tf_datasets(self, dataframe_X, dataframe_Y, pad_length):
-
-       
-        X_1 = tf.data.Dataset.from_tensor_slices(dataframe_X[self.parameters].values)
-        X_2 = tf.data.Dataset.from_tensor_slices(dataframe_X[self.ads_col].values)
-        X_3 = tf.data.Dataset.from_tensor_slices(dataframe_X[self.sorb_col].values)
-        X_4 = tf.data.Dataset.from_tensor_slices(dataframe_X[self.P_col].values.reshape(-1, pad_length))
-        Y = tf.data.Dataset.from_tensor_slices(dataframe_Y[self.Q_col].values.reshape(-1, pad_length))
-
-        # Zip the datasets together to create a single dataset with multiple inputs
-        dataset = tf.data.Dataset.zip((X_1, X_2, X_3, X_4, Y))    
-
-        return dataset   
+        return dataset     
         
     #--------------------------------------------------------------------------
     def model_savefolder(self, path, model_name):

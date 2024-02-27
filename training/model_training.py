@@ -227,26 +227,22 @@ encoder_path = os.path.join(pp_path, 'guest_encoder.pkl')
 with open(encoder_path, 'wb') as file:
     pickle.dump(guest_encoder, file) 
 
-# create deep copy of the dataframes to avoid modifying the original data.
-# the copies will be used to save the preprocessed data (this way the sequences
-# of pressur and uptakes can be converted to a single string per row)
+# save npy files
 #------------------------------------------------------------------------------
-file_loc = os.path.join(pp_path, 'train_X.csv')
-train_X_csv = train_X.copy(deep=True)
-train_X_csv[preprocessor.P_col] = train_X_csv[preprocessor.P_col].apply(lambda x : ' '.join([str(f) for f in x]))
-train_X_csv.to_csv(file_loc, index=False, sep=';', encoding='utf-8')
-file_loc = os.path.join(pp_path, 'train_Y.csv')
-train_Y_csv = train_Y.copy(deep=True)
-train_Y_csv = train_Y_csv.apply(lambda x : ' '.join([str(f) for f in x]))
-train_Y_csv.to_csv(file_loc, index=False, sep=';', encoding='utf-8')
-file_loc = os.path.join(pp_path, 'test_X.csv')
-test_X_csv = test_X.copy(deep=True)
-test_X_csv[preprocessor.P_col] = test_X_csv[preprocessor.P_col].apply(lambda x : ' '.join([str(f) for f in x]))
-test_X_csv.to_csv(file_loc, index=False, sep=';', encoding='utf-8')
-file_loc = os.path.join(pp_path, 'test_Y.csv')
-test_Y_csv = test_Y.copy(deep=True)
-test_Y_csv = test_Y_csv.apply(lambda x : ' '.join([str(f) for f in x]))
-test_Y_csv.to_csv(file_loc, index=False, sep=';', encoding='utf-8')
+    
+# Save training data
+np.save(os.path.join(pp_path, 'train_parameters.npy'), train_parameters)
+np.save(os.path.join(pp_path, 'train_hosts.npy'), train_hosts)
+np.save(os.path.join(pp_path, 'train_guests.npy'), train_guests)
+np.save(os.path.join(pp_path, 'train_pressures.npy'), train_pressures)
+np.save(os.path.join(pp_path, 'train_uptakes.npy'), train_uptakes)
+
+# Save testing data
+np.save(os.path.join(pp_path, 'test_parameters.npy'), test_parameters)
+np.save(os.path.join(pp_path, 'test_hosts.npy'), test_hosts)
+np.save(os.path.join(pp_path, 'test_guests.npy'), test_guests)
+np.save(os.path.join(pp_path, 'test_pressures.npy'), test_pressures)
+np.save(os.path.join(pp_path, 'test_uptakes.npy'), test_uptakes)
 
 # [BUILD SCADS MODEL]
 #==============================================================================

@@ -206,8 +206,7 @@ class PressureEncoder(layers.Layer):
         self.dense2 = layers.Dense(368, activation='relu', kernel_initializer='he_uniform')        
         self.bnffn1 = BNFeedForward(512, self.seed, 0.2) 
         self.bnffn2 = BNFeedForward(512, self.seed, 0.2)
-        self.pooling = layers.GlobalAveragePooling1D()        
-        self.layernorm = layers.LayerNormalization()         
+        self.pooling = layers.GlobalAveragePooling1D()                   
         self.supports_masking = True
 
     # implement transformer encoder through call method  
@@ -215,9 +214,9 @@ class PressureEncoder(layers.Layer):
     def call(self, inputs, training=True):
 
         mask = self.compute_mask(inputs)
-        inputs = inputs * tf.cast(mask, dtype=inputs.dtype)   
-        inputs = tf.expand_dims(inputs, axis=-1)                       
-        layer = self.conv(inputs)
+        inputs = inputs * tf.cast(mask, dtype=inputs.dtype)       
+        inputs = tf.expand_dims(inputs, axis=-1)                          
+        layer = self.conv(inputs)        
         layer = self.dense1(layer)
         layer = self.dense2(layer)
         layer = self.pooling(layer)                                
@@ -571,24 +570,24 @@ class Inference:
         return model, configuration
     
     #--------------------------------------------------------------------------
-    def sequence_recovery(self, sequences, pad_value, normalizer, 
-                          from_reference=False, reference=None):
+    def sequence_recovery(self, pressure, true_Y, pred_Y, pad_value, 
+                          pressure_normalizer, uptake_normalizer):
+        
+        indices_to_remove = [np.where(pressure[i] == pad_value)[0] for i in range(len(pressure))]        
+        true_Y_recovered = [np.delete(true_Y[i], indices_to_remove[i]) for i in range(len(pressure))]
+        pred_Y_recovered = [np.delete(pred_Y[i], indices_to_remove[i]) for i in range(len(pressure))]
+        pressure_recovered = [np.delete(pressure[i], indices_to_remove[i]) for i in range(len(pressure))]
 
-        def unpadding(seq, pad_value):
-            pad_value = normalizer.inverse_transform(np.array([pad_value]).reshape(1, 1)) 
-            length = len([x for x in seq if x != pad_value.item()])            
-            return seq[:length]
+
+
+        true_Y_recovered = [uptake_normalizer.inverse_transform(x.reshape(-1, 1)) for x in true_Y_recovered]
+        pred_Y_recovered = [uptake_normalizer.inverse_transform(x.reshape(-1, 1)) for x in pred_Y_recovered]
+        pressure_recovered = [pressure_normalizer.inverse_transform(x.reshape(-1, 1)) for x in pressure_recovered]
+
+        return pressure_recovered, true_Y_recovered, pred_Y_recovered
+
+
         
-        if from_reference==True and reference is not None:
-            reference_lens = [len(x) for x in reference]
-            scaled_sequences = normalizer.inverse_transform(sequences)
-            unpadded_sequences = [x[:l] for x, l in zip(scaled_sequences, reference_lens)] 
-        else:
-            scaled_sequences = normalizer.inverse_transform(sequences)            
-            unpadded_sequences = [unpadding(x, pad_value) for x in scaled_sequences]            
-        
-        return unpadded_sequences 
-   
     
 # [MODEL VALIDATION]
 #============================================================================== 

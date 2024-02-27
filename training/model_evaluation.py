@@ -39,32 +39,35 @@ model.summary(expand_nested=True)
 # load preprocessed data
 #------------------------------------------------------------------------------
 pp_path = os.path.join(model_path, 'preprocessing')
-filepath = os.path.join(pp_path, 'train_X.csv')                
-train_X = pd.read_csv(filepath, sep= ';', encoding='utf-8')
-filepath = os.path.join(pp_path, 'test_X.csv')                
-test_X = pd.read_csv(filepath, sep= ';', encoding='utf-8')
-filepath = os.path.join(pp_path, 'train_Y.csv')                
-train_Y = pd.read_csv(filepath, sep= ';', encoding='utf-8')
-filepath = os.path.join(pp_path, 'test_Y.csv')                
-test_Y = pd.read_csv(filepath, sep= ';', encoding='utf-8')
+
+# load train data
+train_parameters = np.load(os.path.join(pp_path, 'train_parameters.npy'))
+train_hosts = np.load(os.path.join(pp_path, 'train_hosts.npy'))
+train_guests = np.load(os.path.join(pp_path, 'train_guests.npy'))
+train_pressures = np.load(os.path.join(pp_path, 'train_pressures.npy'))
+train_uptakes = np.load(os.path.join(pp_path, 'train_uptakes.npy'))
+
+# load test data
+test_parameters = np.load(os.path.join(pp_path, 'test_parameters.npy'))
+test_hosts = np.load(os.path.join(pp_path, 'test_hosts.npy'))
+test_guests = np.load(os.path.join(pp_path, 'test_guests.npy'))
+test_pressures = np.load(os.path.join(pp_path, 'test_pressures.npy'))
+test_uptakes = np.load(os.path.join(pp_path, 'test_uptakes.npy'))
+
+# create list of inputs for both train and test datasets
+train_inputs = [train_parameters, train_hosts, train_guests, train_pressures] 
+test_inputs = [test_parameters, test_hosts, test_guests, test_pressures] 
+validation_data = (test_inputs, test_uptakes) 
 
 # load encoders and normalizers
 #------------------------------------------------------------------------------
-filepath = os.path.join(pp_path, 'features_normalizer.pkl')
-with open(filepath, 'rb') as file:
-    feat_normalizer = pickle.load(file)
 filepath = os.path.join(pp_path, 'pressure_normalizer.pkl')
 with open(filepath, 'rb') as file:
     press_normalizer = pickle.load(file)
 filepath = os.path.join(pp_path, 'uptake_normalizer.pkl')
 with open(filepath, 'rb') as file:
     uptake_normalizer = pickle.load(file)
-filepath = os.path.join(pp_path, 'guest_encoder.pkl')
-with open(filepath, 'rb') as file:
-    G_encoder = pickle.load(file)
-filepath = os.path.join(pp_path, 'host_encoder.pkl')
-with open(filepath, 'rb') as file:
-    H_encoder = pickle.load(file)
+
 
 # [PERFORM QUICK EVALUATION]
 #==============================================================================
@@ -86,29 +89,10 @@ validator = ModelValidation(model)
 eval_path = os.path.join(model_path, 'evaluation') 
 os.mkdir(eval_path) if not os.path.exists(eval_path) else None
 
-# convert pressure and uptake sequences from strings to array of floats
-#------------------------------------------------------------------------------
-train_pressure = train_X[preprocessor.P_col].apply(lambda x: np.array([float(val) for val in x.split()]))
-test_pressure = test_X[preprocessor.P_col].apply(lambda x: np.array([float(val) for val in x.split()]))
-train_output = train_Y[preprocessor.Q_col].apply(lambda x: np.array([float(val) for val in x.split()]))
-test_output = test_Y[preprocessor.Q_col].apply(lambda x: np.array([float(val) for val in x.split()]))
-
-# Reshape sequences of pressure and uptakes to 2D arrays 
-#------------------------------------------------------------------------------
-train_pressure = np.stack(train_pressure.values)
-test_pressure = np.stack(test_pressure.values)
-train_output = np.stack(train_output.values)
-test_output = np.stack(test_output.values)
-
-# define train and test inputs
-#------------------------------------------------------------------------------
-train_inputs = [train_X[preprocessor.features], train_X[preprocessor.ads_col], train_X[preprocessor.sorb_col], train_pressure]
-test_inputs = [test_X[preprocessor.features], test_X[preprocessor.ads_col], test_X[preprocessor.sorb_col], test_pressure]
-
 # evaluate model performance on train and test datasets
 #------------------------------------------------------------------------------
-train_eval = model.evaluate(x=train_inputs, y=train_output, batch_size=512, verbose=1)
-test_eval = model.evaluate(x=test_inputs, y=test_output, batch_size=512, verbose=1)
+train_eval = model.evaluate(x=train_inputs, y=train_uptakes, batch_size=512, verbose=1)
+test_eval = model.evaluate(x=test_inputs, y=test_uptakes, batch_size=512, verbose=1)
 
 print(f'''
 -------------------------------------------------------------------------------
@@ -131,23 +115,25 @@ test_predictions = model.predict(test_inputs)
 # remove padding and normalization from the original train and test pressure series,
 # as well from the original train and test uptake series and the predicted values
 #------------------------------------------------------------------------------
-true_train_pressures = preprocessor.sequence_recovery(train_pressure, parameters['padding_value'], press_normalizer) 
-true_test_pressures = preprocessor.sequence_recovery(test_pressure, parameters['padding_value'], press_normalizer)
-true_train_uptakes = preprocessor.sequence_recovery(train_output, parameters['padding_value'], uptake_normalizer) 
-true_test_uptakes = preprocessor.sequence_recovery(test_output, parameters['padding_value'], uptake_normalizer) 
+rec_train_P, rec_train_Q, pred_train_Q = inference.sequence_recovery(train_pressures,                                                                     
+                                                                     train_uptakes,
+                                                                     train_predictions,
+                                                                     parameters['padding_value'],
+                                                                     press_normalizer,
+                                                                     uptake_normalizer)  
 
-# the lenght of the original uptake series (labels) is used to slice the predicted series,
-# since the pad value cannot be used directly as a reference to remove unwanted values
-predicted_train_uptakes = preprocessor.sequence_recovery(train_predictions, parameters['padding_value'], uptake_normalizer,
-                                                         from_reference=True, reference=true_train_uptakes) 
-predicted_test_uptakes = preprocessor.sequence_recovery(test_predictions, parameters['padding_value'], uptake_normalizer,
-                                                        from_reference=True, reference=true_test_uptakes)
+rec_test_P, rec_test_Q, pred_test_Q = inference.sequence_recovery(test_pressures,
+                                                                  test_uptakes,
+                                                                  test_predictions,                                                                  
+                                                                  parameters['padding_value'],
+                                                                  press_normalizer,
+                                                                  uptake_normalizer)  
 
 # perform visual validation by comparing true and predicted isotherms on both 
 # the train and test datasets
 #------------------------------------------------------------------------------
-validator.visualize_predictions(true_train_pressures, true_train_uptakes, predicted_train_uptakes, 'train', eval_path)
-validator.visualize_predictions(true_test_pressures, true_test_uptakes, predicted_test_uptakes, 'test', eval_path)
+validator.visualize_predictions(rec_train_P, rec_train_Q, pred_train_Q, 'train', eval_path)
+validator.visualize_predictions(rec_test_P, rec_test_Q, pred_test_Q, 'test', eval_path)
 
 
 
