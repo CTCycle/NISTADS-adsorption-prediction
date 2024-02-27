@@ -2,8 +2,10 @@ import os
 import pandas as pd
 import numpy as np
 from datetime import datetime
+import tensorflow as tf
 from keras.api._v2.keras import preprocessing
-from sklearn.preprocessing import MinMaxScaler, OrdinalEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler, RobustScaler, OrdinalEncoder
 from tqdm import tqdm
 tqdm.pandas()
 
@@ -64,22 +66,13 @@ class PreProcessing:
         self.valid_units = ['mmol/g', 'mol/kg', 'mol/g', 'mmol/kg', 'mg/g', 'g/g', 
                             'wt%', 'g Adsorbate / 100g Adsorbent', 'g/100g', 'ml(STP)/g', 
                             'cm3(STP)/g']
-        self.features = ['temperature', 'mol_weight', 'complexity', 'covalent_units', 
-                    'H_acceptors', 'H_donors', 'heavy_atoms']
+        self.parameters = ['temperature', 'mol_weight', 'complexity', 'covalent_units', 
+                         'H_acceptors', 'H_donors', 'heavy_atoms']
         self.ads_col, self.sorb_col  = ['adsorbent_name'], ['adsorbates_name'] 
         self.P_col, self.Q_col  = 'pressure_in_Pascal', 'uptake_in_mol/g'
-        self.P_unit_col, self.Q_unit_col  = 'pressureUnits', 'adsorptionUnits'
+        self.P_unit_col, self.Q_unit_col  = 'pressureUnits', 'adsorptionUnits'  
+
     
-
-    #--------------------------------------------------------------------------
-    def zero_convergence(self, row, col_A, col_B):
-        if row[col_A][0] == 0 and row[col_B][0] != 0:
-            row[col_B][0] = 0         
-        elif row[col_A][0] != 0 and row[col_B][0] != 0:
-            row[col_A].insert(0, 0)
-            row[col_B].insert(0, 0)
-
-        return row
 
     #--------------------------------------------------------------------------
     def pressure_converter(self, type, p_val):
@@ -133,7 +126,7 @@ class PreProcessing:
         return q_val        
         
     #--------------------------------------------------------------------------
-    def guest_properties(self, df_isotherms, df_adsorbates):
+    def add_guest_properties(self, df_isotherms, df_adsorbates):
 
         '''
         Assigns properties to adsorbates based on their isotherm data.
@@ -160,9 +153,47 @@ class PreProcessing:
 
         return df_adsorption
     
-    # normalize data 
+    #--------------------------------------------------------------------------
+    def remove_leading_zeros(self, sequence_A, sequence_B):
+
+        # Find the index of the first non-zero element or get the last index if all are zeros
+        first_non_zero_index_A = next((i for i, x in enumerate(sequence_A) if x != 0), len(sequence_A) - 1)
+        first_non_zero_index_B = next((i for i, x in enumerate(sequence_B) if x != 0), len(sequence_B) - 1)
+            
+        # Ensure to remove leading zeros except one, for both sequences
+        processed_seq_A = sequence_A[max(0, first_non_zero_index_A - 1):]
+        processed_seq_B = sequence_B[max(0, first_non_zero_index_B - 1):]        
+        
+        return processed_seq_A, processed_seq_B
+    
+
+    #--------------------------------------------------------------------------
+    def split_dataset(self, dataset, test_size, seed=42):
+        inputs = dataset[[x for x in dataset.columns if x != self.Q_col]]
+        labels = dataset[self.Q_col]
+        train_X, test_X, train_Y, test_Y = train_test_split(inputs, labels, test_size=test_size, 
+                                                            random_state=seed, shuffle=True, 
+                                                            stratify=None) 
+        
+        return train_X, test_X, train_Y, test_Y 
+        
+
+    # normalize sequences using a RobustScaler: X = X - median(X)/IQR(X)
+    # flatten and reshape array to make it compatible with the scaler
     #--------------------------------------------------------------------------  
-    def normalize_data(self, train_X, train_Y, test_X, test_Y):
+    def normalize_sequences(self, train, test, column):        
+        
+        normalizer = MinMaxScaler(feature_range=(0,1))
+        sequence_array = np.array([item for sublist in train[column] for item in sublist]).reshape(-1, 1)         
+        normalizer.fit(sequence_array)
+        train[column] = train[column].apply(lambda x: normalizer.transform(np.array(x).reshape(-1, 1)).flatten())
+        test[column] = test[column].apply(lambda x: normalizer.transform(np.array(x).reshape(-1, 1)).flatten())
+
+        return train, test, normalizer
+    
+    # normalize parameters
+    #--------------------------------------------------------------------------  
+    def normalize_parameters(self, train_X, train_Y, test_X, test_Y):
 
         '''
         Normalize the input features and output labels for training and testing data.
@@ -180,46 +211,23 @@ class PreProcessing:
                    normalized testing features, and normalized testing labels.
         
         '''
-        columns = ['temperature', 'mol_weight', 'complexity', 'heavy_atoms']
-
-        # cast float type for both the labels and the continuous features columns        
-        train_X[columns] = train_X[columns].astype(float)        
-        test_X[columns] = test_X[columns].astype(float)
         
-        # normalize the numerical features (temperature, physicochemical properties)      
-        self.features_normalizer = MinMaxScaler(feature_range=(0, 1))
-        train_X[columns] = self.features_normalizer.fit_transform(train_X[columns])
-        test_X[columns] = self.features_normalizer.transform(test_X[columns])
-
-        # normalize pressures of adsorption within the range 0 - 1
-        # flatten and reshape array of arrays to make it compatible with the MinMaxScaler
-        # use apply to transform each array
-        column = 'pressure_in_Pascal'
-        pressure_array = [item for sublist in train_X[column] for item in sublist]
-        pressure_array = np.array(pressure_array).reshape(-1, 1)
-
-        self.pressure_normalizer = MinMaxScaler(feature_range=(0, 1))
-        self.pressure_normalizer.fit(pressure_array)
-        train_X[column] = train_X[column].apply(lambda x: self.pressure_normalizer.transform(np.array(x).reshape(-1, 1)).flatten())
-        test_X[column] = test_X[column].apply(lambda x: self.pressure_normalizer.transform(np.array(x).reshape(-1, 1)).flatten())
-
-        # normalize uptake within the range 0 - 1
-        # flatten and reshape array of arrays to make it compatible with the MinMaxScaler
-        # use apply to transform each array
-        column = 'uptake_in_mol/g'
-        uptake_array = [item for sublist in train_Y[column] for item in sublist]
-        uptake_array = np.array(uptake_array).reshape(-1, 1)
-
-        self.uptake_normalizer = MinMaxScaler(feature_range=(0, 1))
-        self.uptake_normalizer.fit(uptake_array)
-        train_Y = train_Y[column].apply(lambda x: self.uptake_normalizer.transform(np.array(x).reshape(-1, 1)).flatten())
-        test_Y = test_Y[column].apply(lambda x: self.uptake_normalizer.transform(np.array(x).reshape(-1, 1)).flatten())
+        # cast float type for both the labels and the continuous features columns 
+        norm_columns = ['temperature', 'mol_weight', 'complexity', 'heavy_atoms']       
+        train_X[norm_columns] = train_X[norm_columns].astype(float)        
+        test_X[norm_columns] = test_X[norm_columns].astype(float)
+        
+        # normalize the numerical features (temperature and physicochemical properties)      
+        self.param_normalizer = MinMaxScaler(feature_range=(0, 1))
+        train_X[norm_columns] = self.param_normalizer.fit_transform(train_X[norm_columns])
+        test_X[norm_columns] = self.param_normalizer.transform(test_X[norm_columns])        
 
         return train_X, train_Y, test_X, test_Y    
     
+    
     # encode variables  
     #--------------------------------------------------------------------------  
-    def data_encoding(self, unique_adsorbents, unique_sorbates, train_X, test_X):
+    def GH_encoding(self, unique_adsorbents, unique_sorbates, train_X, test_X):
 
         '''
         Encode categorical features using ordinal encoding. This method encodes categorical 
@@ -243,11 +251,10 @@ class PreProcessing:
         test_X[['adsorbent_name']] = self.host_encoder.transform(test_X[['adsorbent_name']])
         test_X[['adsorbates_name']] = self.guest_encoder.transform(test_X[['adsorbates_name']])
 
-        return train_X, test_X         
-    
+        return train_X, test_X    
     
     #--------------------------------------------------------------------------  
-    def sequence_padding(self, sequence, pad_value=0, pad_length=50):
+    def sequence_padding(self, dataset, column, pad_value=-1, pad_length=50):
 
         '''
         Normalizes a series of values.
@@ -258,31 +265,29 @@ class PreProcessing:
         Returns:
             list: A list of normalized values
         
-        '''
-        processed_series = preprocessing.sequence.pad_sequences([sequence], maxlen=pad_length, value=pad_value, 
-                                                                dtype='float32', padding='post')
-        pp_seq = [x for x in processed_series[0]]    
+        '''        
+        dataset[column] = preprocessing.sequence.pad_sequences(dataset[column], 
+                                                               maxlen=pad_length, 
+                                                               value=pad_value, 
+                                                               dtype='float32', 
+                                                               padding='post').tolist()           
 
-        return pp_seq 
+        return dataset
 
     #--------------------------------------------------------------------------
-    def sequence_recovery(self, sequences, pad_value, normalizer, 
-                          from_reference=False, reference=None):
+    def create_tf_datasets(self, dataframe_X, dataframe_Y, pad_length):
 
-        def unpadding(seq, pad_value):
-            pad_value = normalizer.inverse_transform(np.array([pad_value]).reshape(1, 1)) 
-            length = len([x for x in seq if x != pad_value.item()])            
-            return seq[:length]
-        
-        if from_reference==True and reference is not None:
-            reference_lens = [len(x) for x in reference]
-            scaled_sequences = normalizer.inverse_transform(sequences)
-            unpadded_sequences = [x[:l] for x, l in zip(scaled_sequences, reference_lens)] 
-        else:
-            scaled_sequences = normalizer.inverse_transform(sequences)            
-            unpadded_sequences = [unpadding(x, pad_value) for x in scaled_sequences]            
-        
-        return unpadded_sequences      
+       
+        X_1 = tf.data.Dataset.from_tensor_slices(dataframe_X[self.parameters].values)
+        X_2 = tf.data.Dataset.from_tensor_slices(dataframe_X[self.ads_col].values)
+        X_3 = tf.data.Dataset.from_tensor_slices(dataframe_X[self.sorb_col].values)
+        X_4 = tf.data.Dataset.from_tensor_slices(dataframe_X[self.P_col].values.reshape(-1, pad_length))
+        Y = tf.data.Dataset.from_tensor_slices(dataframe_Y[self.Q_col].values.reshape(-1, pad_length))
+
+        # Zip the datasets together to create a single dataset with multiple inputs
+        dataset = tf.data.Dataset.zip((X_1, X_2, X_3, X_4, Y))    
+
+        return dataset   
         
     #--------------------------------------------------------------------------
     def model_savefolder(self, path, model_name):

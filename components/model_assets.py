@@ -62,22 +62,22 @@ class RealTimeHistory(keras.callbacks.Callback):
 #==============================================================================
 @keras.utils.register_keras_serializable(package='CustomLayers', name='Parametrizer')
 class Parametrizer(layers.Layer):
-    def __init__(self, **kwargs):
-        super(Parametrizer, self).__init__(**kwargs)        
-        self.dense1 = layers.Dense(256, activation='tanh', kernel_initializer='glorot_uniform')              
-        self.dense2 = layers.Dense(256, activation='LeakyReLU', kernel_initializer='he_uniform')              
-        self.dense3 = layers.Dense(512, activation='LeakyReLU', kernel_initializer='he_uniform')
-        self.dense4 = layers.Dense(1024, activation='LeakyReLU', kernel_initializer='he_uniform')          
-        self.layernorm = layers.LayerNormalization()                 
+    def __init__(self, seq_length, seed=42, **kwargs):
+        super(Parametrizer, self).__init__(**kwargs)
+        self.seq_length = seq_length
+        self.seed = seed        
+        self.dense1 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')              
+        self.dense2 = layers.Dense(368, activation='relu', kernel_initializer='he_uniform')              
+        self.dense3 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')                
+        self.bbn = BNFeedForward(512, dropout=0.2)                
 
     # implement parametrizer through call method  
     #--------------------------------------------------------------------------
     def call(self, inputs, training=True):
-        layer1 = self.dense1(inputs)       
-        layer2 = self.dense2(inputs)        
-        layer = self.layernorm(layer1 + layer2)
-        layer = self.dense3(layer)
-        output = self.dense4(layer)
+        layer = self.dense1(inputs)       
+        layer = self.dense2(layer)        
+        layer = self.dense3(layer)       
+        output = self.bbn(layer, training=training)
         
         return output
     
@@ -85,7 +85,8 @@ class Parametrizer(layers.Layer):
     #--------------------------------------------------------------------------
     def get_config(self):
         config = super(Parametrizer, self).get_config()
-        config.update({})
+        config.update({'seq_length': self.seq_length,
+                       'seed': self.seed})
         return config
 
     # deserialization method  
@@ -103,7 +104,7 @@ class Parametrizer(layers.Layer):
 class BNFeedForward(layers.Layer):
     def __init__(self, units, seed=42, dropout=0.1, **kwargs):
         super(BNFeedForward, self).__init__(**kwargs)
-        self.units = units   
+        self.units = units         
         self.seed = seed  
         self.dropout = dropout
         self.BN = layers.BatchNormalization(axis=-1, epsilon=0.001)  
@@ -141,8 +142,9 @@ class BNFeedForward(layers.Layer):
 #============================================================================== 
 @keras.utils.register_keras_serializable(package='Encoders', name='GHEncoder')
 class GHEncoder(layers.Layer):
-    def __init__(self, gvocab_size, hvocab_size, embedding_dims, seed=42, **kwargs):
+    def __init__(self, seq_length, gvocab_size, hvocab_size, embedding_dims, seed=42, **kwargs):
         super(GHEncoder, self).__init__(**kwargs)
+        self.seq_length = seq_length 
         self.gvocab_size = gvocab_size
         self.hvocab_size = hvocab_size
         self.embedding_dims = embedding_dims
@@ -150,22 +152,22 @@ class GHEncoder(layers.Layer):
         self.embedding_G = layers.Embedding(input_dim=gvocab_size, output_dim=self.embedding_dims)
         self.embedding_H = layers.Embedding(input_dim=hvocab_size, output_dim=self.embedding_dims)              
         self.dense1 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')    
-        self.dense2 = layers.Dense(512, activation='relu',kernel_initializer='he_uniform') 
-        self.dense3 = layers.Dense(1024, activation='relu', kernel_initializer='he_uniform')        
-        self.layernorm = layers.LayerNormalization() 
-        self.pooling = layers.GlobalAveragePooling1D()             
-        self.bnffn = BNFeedForward(1024, self.seed, 0.2)        
+        self.dense2 = layers.Dense(368, activation='relu',kernel_initializer='he_uniform') 
+        self.dense3 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')        
+        self.layernorm = layers.LayerNormalization()
+        self.pooling = layers.GlobalAveragePooling1D()              
+        self.bnffn = BNFeedForward(512, self.seed, 0.2)        
         
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
     def call(self, guests, hosts, training=True):        
-        G_emb = self.embedding_G(guests)
-        H_emb = self.embedding_H(hosts)
-        layer = self.layernorm(G_emb + H_emb)        
+        G_emb = self.embedding_G(guests)        
+        H_emb = self.embedding_H(hosts)                 
+        layer = self.layernorm(G_emb + H_emb)
         layer = self.pooling(layer)        
-        layer = self.dense1(layer)
+        layer = self.dense1(layer)              
         layer = self.dense2(layer)
-        layer = self.dense3(layer)  
+        layer = self.dense3(layer)           
         output = self.bnffn(layer, training=training)                     
         
         return output
@@ -174,7 +176,8 @@ class GHEncoder(layers.Layer):
     #--------------------------------------------------------------------------
     def get_config(self):
         config = super(GHEncoder, self).get_config()
-        config.update({'gvocab_size': self.gvocab_size,
+        config.update({'seq_length': self.seq_length,
+                       'gvocab_size': self.gvocab_size,
                        'hvocab_size': self.hvocab_size,
                        'embedding_dims': self.embedding_dims,
                        'seed': self.seed})
@@ -198,13 +201,13 @@ class PressureEncoder(layers.Layer):
         super(PressureEncoder, self).__init__(**kwargs)
         self.pad_value = pad_value        
         self.seed = seed               
-        self.conv = layers.Conv1D(256, 6, padding='same', activation='relu', kernel_initializer='he_uniform')
+        self.conv = layers.Conv1D(256, 4, padding='same', activation='relu', kernel_initializer='he_uniform')
         self.dense1 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')    
-        self.dense2 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')        
-        self.bnffn1 = BNFeedForward(1024, self.seed, 0.2) 
-        self.bnffn2 = BNFeedForward(1024, self.seed, 0.2)        
-        self.layernorm = layers.LayerNormalization()
-        self.globpool = layers.GlobalAveragePooling1D()  
+        self.dense2 = layers.Dense(368, activation='relu', kernel_initializer='he_uniform')        
+        self.bnffn1 = BNFeedForward(512, self.seed, 0.2) 
+        self.bnffn2 = BNFeedForward(512, self.seed, 0.2)
+        self.pooling = layers.GlobalAveragePooling1D()        
+        self.layernorm = layers.LayerNormalization()         
         self.supports_masking = True
 
     # implement transformer encoder through call method  
@@ -217,7 +220,7 @@ class PressureEncoder(layers.Layer):
         layer = self.conv(inputs)
         layer = self.dense1(layer)
         layer = self.dense2(layer)
-        layer = self.globpool(layer)                             
+        layer = self.pooling(layer)                                
         layer = self.bnffn1(layer, training=training)
         output = self.bnffn2(layer, training=training)                             
         
@@ -257,13 +260,12 @@ class QDecoder(layers.Layer):
         self.seed = seed           
         self.dense1 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')                 
         self.dense2 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform') 
-        self.dense3 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform') 
-        self.bnffn1 = BNFeedForward(1024, self.seed, 0.1) 
-        self.bnffn2 = BNFeedForward(768, self.seed, 0.2) 
-        self.bnffn3 = BNFeedForward(512, self.seed, 0.2)
+        self.dense3 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')        
+        self.bnffn1 = BNFeedForward(768, self.seed, 0.1) 
+        self.bnffn2 = BNFeedForward(1024, self.seed, 0.2) 
+        self.bnffn3 = BNFeedForward(1024, self.seed, 0.2)        
         self.denseout = layers.Dense(seq_length, activation='relu', dtype='float32') 
-        self.layernorm = layers.LayerNormalization()         
-        self.concat = layers.Concatenate()    
+        self.layernorm = layers.LayerNormalization()        
         self.supports_masking = True
 
     # implement transformer encoder through call method  
@@ -271,12 +273,11 @@ class QDecoder(layers.Layer):
     def call(self, features, embeddings, sequences, mask=None, training=True):
         layer1 = self.dense1(features)
         layer2 = self.dense2(embeddings)
-        layer3 = self.dense3(sequences)        
-        concat = self.concat([layer1, layer2, layer3])
-        layer = self.bnffn1(concat, training)
-        layer = self.bnffn2(layer, training)
-        layer = self.bnffn3(layer, training)
-        layer = self.layernorm(layer + layer3)
+        layer3 = self.dense3(sequences)
+        layer = self.layernorm(layer1 + layer2 + layer3)       
+        layer = self.bnffn1(layer, training=training)
+        layer = self.bnffn2(layer, training=training)
+        layer = self.bnffn3(layer, training=training)        
         output = self.denseout(layer)                    
         
         return output
@@ -314,35 +315,38 @@ class SCADSModel:
         self.embedding_dims = embedding_dims
         self.seed = seed
         self.XLA_state = XLA_acceleration
-        self.parametrizer = Parametrizer()
-        self.embedder = GHEncoder(adsorbates_dims, adsorbent_dims, embedding_dims, seed)
-        self.P_encoder = PressureEncoder(pad_value, seed)
+        self.parametrizer = Parametrizer(sequence_length, seed)
+        self.embedder = GHEncoder(sequence_length, adsorbates_dims, adsorbent_dims, embedding_dims, seed)
+        self.encoder = PressureEncoder(pad_value, seed)
         self.decoder = QDecoder(sequence_length, seed)
         
     # build model given the architecture
     #--------------------------------------------------------------------------
     def get_model(self, summary=True):       
        
+        # define model inputs using input layers
         feat_inputs = layers.Input(shape = (self.num_features, ))
         host_inputs = layers.Input(shape = (1,))
         guest_inputs = layers.Input(shape = (1,))
-        pressure_inputs = layers.Input(shape = (self.sequence_length, ))        
+        pressure_inputs = layers.Input(shape = (self.sequence_length, ))
+               
         parametrizer = self.parametrizer(feat_inputs)
         GH_encoder = self.embedder(host_inputs, guest_inputs)        
-        pressure_encoder = self.P_encoder(pressure_inputs)
+        pressure_encoder = self.encoder(pressure_inputs)
         decoder = self.decoder(parametrizer, GH_encoder, pressure_encoder)        
         
         model = Model(inputs=[feat_inputs, host_inputs, guest_inputs, pressure_inputs],
                       outputs=decoder, name='SCADS')
         opt = keras.optimizers.Adam(learning_rate=self.learning_rate)
         loss = MaskedMeanSquaredError(self.pad_value)
-        metrics = keras.metrics.MeanAbsoluteError()
+        metrics = MaskedMeanAbsoluteError(self.pad_value)
         model.compile(loss=loss, optimizer=opt, metrics=metrics, run_eagerly=False,
                       jit_compile=self.XLA_state)     
         if summary==True:
             model.summary(expand_nested=True)
 
-        return model             
+        return model
+                 
 
 # [CUSTOM MASKED LOSS]
 #==============================================================================
@@ -377,8 +381,55 @@ class MaskedMeanSquaredError(keras.losses.Loss):
     @classmethod
     def from_config(cls, config):
         return cls(**config)
-     
 
+# [CUSTOM MASKED METRIC]
+#==============================================================================
+# collection of model and submodels
+#==============================================================================    
+@keras.utils.register_keras_serializable(package='CustomMetric', name='MaskedMeanAbsoluteError')
+class MaskedMeanAbsoluteError(keras.metrics.Metric):
+    def __init__(self, pad_value, name='MaskedMeanAbsoluteError', **kwargs):
+        super(MaskedMeanAbsoluteError, self).__init__(name=name, **kwargs)
+        self.pad_value = pad_value
+        self.total = self.add_weight(name="total", initializer="zeros")
+        self.count = self.add_weight(name="count", initializer="zeros")
+
+    # update metric status
+    #--------------------------------------------------------------------------
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        mask = tf.not_equal(y_true, self.pad_value)
+        y_true_masked = tf.boolean_mask(y_true, mask)
+        y_pred_masked = tf.boolean_mask(y_pred, mask)
+        
+        error = tf.abs(y_true_masked - y_pred_masked)
+        self.total.assign_add(tf.reduce_sum(error))
+        self.count.assign_add(tf.cast(tf.size(y_true_masked), tf.float32))
+
+    # results
+    #--------------------------------------------------------------------------
+    def result(self):
+        return tf.math.divide_no_nan(self.total, self.count)
+
+    # The state of the metric will be reset at the start of each epoch
+    #--------------------------------------------------------------------------
+    def reset_states(self):        
+        self.total.assign(0)
+        self.count.assign(0)
+
+    # serialize loss for saving  
+    #--------------------------------------------------------------------------
+    def get_config(self):       
+        config = super(MaskedMeanAbsoluteError, self).get_config()
+        config.update({'pad_value': self.pad_value})
+        return config
+
+    # deserialization method  
+    #--------------------------------------------------------------------------
+    @classmethod
+    def from_config(cls, config):        
+        return cls(**config)
+    
+    
 # [TRAINING OPTIONS]
 #==============================================================================
 # Custom training operations
@@ -518,6 +569,25 @@ class Inference:
             configuration = json.load(f)               
         
         return model, configuration
+    
+    #--------------------------------------------------------------------------
+    def sequence_recovery(self, sequences, pad_value, normalizer, 
+                          from_reference=False, reference=None):
+
+        def unpadding(seq, pad_value):
+            pad_value = normalizer.inverse_transform(np.array([pad_value]).reshape(1, 1)) 
+            length = len([x for x in seq if x != pad_value.item()])            
+            return seq[:length]
+        
+        if from_reference==True and reference is not None:
+            reference_lens = [len(x) for x in reference]
+            scaled_sequences = normalizer.inverse_transform(sequences)
+            unpadded_sequences = [x[:l] for x, l in zip(scaled_sequences, reference_lens)] 
+        else:
+            scaled_sequences = normalizer.inverse_transform(sequences)            
+            unpadded_sequences = [unpadding(x, pad_value) for x in scaled_sequences]            
+        
+        return unpadded_sequences 
    
     
 # [MODEL VALIDATION]
