@@ -66,10 +66,12 @@ class Parametrizer(layers.Layer):
         super(Parametrizer, self).__init__(**kwargs)
         self.seq_length = seq_length
         self.seed = seed        
-        self.dense1 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')              
-        self.dense2 = layers.Dense(368, activation='relu', kernel_initializer='he_uniform')              
-        self.dense3 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')                
-        self.bbn = BNFeedForward(512, dropout=0.2)                
+        self.dense1 = layers.Dense(256, activation='tanh', kernel_initializer='glorot_uniform')              
+        self.dense2 = layers.Dense(368, activation='tanh', kernel_initializer='glorot_uniform')              
+        self.dense3 = layers.Dense(512, activation='tanh', kernel_initializer='glorot_uniform')       
+        self.dense4 = layers.Dense(512, activation='tanh', kernel_initializer='glorot_uniform')
+        self.bnorm = layers.BatchNormalization() 
+        self.drop = layers.Dropout(seed=seed, rate=0.2)               
 
     # implement parametrizer through call method  
     #--------------------------------------------------------------------------
@@ -77,7 +79,9 @@ class Parametrizer(layers.Layer):
         layer = self.dense1(inputs)       
         layer = self.dense2(layer)        
         layer = self.dense3(layer)       
-        output = self.bbn(layer, training=training)
+        layer = self.bnorm(layer)
+        layer = self.dense4(layer)
+        output = self.drop(layer)
         
         return output
     
@@ -201,11 +205,13 @@ class PressureEncoder(layers.Layer):
         super(PressureEncoder, self).__init__(**kwargs)
         self.pad_value = pad_value        
         self.seed = seed               
-        self.conv = layers.Conv1D(256, 4, padding='same', activation='relu', kernel_initializer='he_uniform')
+        self.conv1 = layers.Conv1D(64, 6, padding='same', activation='relu', kernel_initializer='he_uniform')
+        self.conv2 = layers.Conv1D(128, 6, padding='same', activation='relu', kernel_initializer='he_uniform')
+        self.conv3 = layers.Conv1D(256, 6, padding='same', activation='relu', kernel_initializer='he_uniform')
         self.dense1 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')    
         self.dense2 = layers.Dense(368, activation='relu', kernel_initializer='he_uniform')        
         self.bnffn1 = BNFeedForward(512, self.seed, 0.2) 
-        self.bnffn2 = BNFeedForward(512, self.seed, 0.2)
+        self.bnffn2 = BNFeedForward(512, self.seed, 0.3)
         self.pooling = layers.GlobalAveragePooling1D()                   
         self.supports_masking = True
 
@@ -216,7 +222,9 @@ class PressureEncoder(layers.Layer):
         mask = self.compute_mask(inputs)
         inputs = inputs * tf.cast(mask, dtype=inputs.dtype)       
         inputs = tf.expand_dims(inputs, axis=-1)                          
-        layer = self.conv(inputs)        
+        layer = self.conv1(inputs)  
+        layer = self.conv2(layer) 
+        layer = self.conv3(layer)       
         layer = self.dense1(layer)
         layer = self.dense2(layer)
         layer = self.pooling(layer)                                
@@ -263,7 +271,7 @@ class QDecoder(layers.Layer):
         self.bnffn1 = BNFeedForward(768, self.seed, 0.1) 
         self.bnffn2 = BNFeedForward(1024, self.seed, 0.2) 
         self.bnffn3 = BNFeedForward(1024, self.seed, 0.2)        
-        self.denseout = layers.Dense(seq_length, activation='relu', dtype='float32') 
+        self.denseout = layers.Dense(seq_length, activation='softplus', dtype='float32') 
         self.layernorm = layers.LayerNormalization()        
         self.supports_masking = True
 
