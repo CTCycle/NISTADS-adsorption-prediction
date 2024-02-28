@@ -29,12 +29,12 @@ import configurations as cnf
 cp_path = os.path.join(globpt.train_path, 'checkpoints')
 os.mkdir(cp_path) if not os.path.exists(cp_path) else None
 
-# [GENERATE CLEAN AGGREGATED DATASET]
+# [PREPROCESS DATASET]
 #==============================================================================
 #==============================================================================
 print(f'''
 -------------------------------------------------------------------------------
-NISTADS model training
+NISTADS data preprocessing
 -------------------------------------------------------------------------------
 ...
 ''')
@@ -60,8 +60,9 @@ df_adsorbents = pd.read_csv(file_loc, sep=';', encoding = 'utf-8')
 
 # add molecular properties based on PUGCHEM API data
 #------------------------------------------------------------------------------ 
-print(f'''Adding physicochemical properties from guest species dataset\n''')
+print('Adding physicochemical properties from guest species dataset\n')
 dataset = preprocessor.add_guest_properties(df_adsorption, df_adsorbates)
+dataset = dataset.dropna()
 
 # filter experiments leaving only valid uptake and pressure units, then convert 
 # pressure and uptake to Pa (pressure) and mol/kg (uptake)
@@ -118,10 +119,6 @@ total_experiments = dataset_grouped.shape[0]
 if cnf.num_samples < total_experiments:
     dataset_grouped = dataset_grouped.sample(n=cnf.num_samples, random_state=30).reset_index()
 
-# [MACHINE LEARNING PREPROCESSING]
-#==============================================================================
-#==============================================================================
-
 # preprocess sequences to remove leading 0 values (some experiments may have several
 # zero measurements at the start), make sure that every experiment starts with pressure
 # of 0 Pa and uptake of 0 mol/g (effectively converges to zero)
@@ -132,11 +129,15 @@ dataset_grouped[[preprocessor.P_col, preprocessor.Q_col]] = dataset_grouped.appl
 
 # split dataset in train and test subsets
 #------------------------------------------------------------------------------
-train_X, test_X, train_Y, test_Y = preprocessor.split_dataset(dataset_grouped, cnf.test_size, cnf.seed)
+train_X, test_X, train_Y, test_Y = preprocessor.split_dataset(dataset_grouped, cnf.test_size, cnf.split_seed)
+
+# [PREPROCESS DATASET: NORMALIZING AND ENCODING]
+#==============================================================================
+#==============================================================================
 
 # encode categorical variables (adsorbents and adsorbates names)
 #------------------------------------------------------------------------------
-print('''Encoding categorical variables\n''')
+print('Encoding categorical variables\n')
 
 # determine number of unique adsorbents and adsorbates from the train dataset
 unique_adsorbents = train_X['adsorbent_name'].nunique() + 1
@@ -151,7 +152,7 @@ guest_encoder = preprocessor.guest_encoder
 
 # normalize parameters (temperature, physicochemical properties) and sequences
 #------------------------------------------------------------------------------
-print('''\nNormalizing continuous variables (temperature, physicochemical properties)\n''')        
+print('\nNormalizing continuous variables (temperature, physicochemical properties)\n')        
 
 train_X, train_Y, test_X, test_Y = preprocessor.normalize_parameters(train_X, train_Y.to_frame(), 
                                                                      test_X, test_Y.to_frame())
@@ -190,12 +191,11 @@ train_inputs = [train_parameters, train_hosts, train_guests, train_pressures]
 test_inputs = [test_parameters, test_hosts, test_guests, test_pressures] 
 validation_data = (test_inputs, test_uptakes)  
 
-
 # print report
 #------------------------------------------------------------------------------ 
 print(f'''
 -------------------------------------------------------------------------------   
-PREPROCESSING REPORT
+DATA ANALYSIS REPORT
 -------------------------------------------------------------------------------
 Number of experiments before filtering: {df_adsorption.groupby('filename').ngroup().nunique()}
 Number of experiments upon filtering:   {dataset.groupby('filename').ngroup().nunique()}
@@ -228,8 +228,7 @@ with open(encoder_path, 'wb') as file:
     pickle.dump(guest_encoder, file) 
 
 # save npy files
-#------------------------------------------------------------------------------
-    
+#------------------------------------------------------------------------------    
 # Save training data
 np.save(os.path.join(pp_path, 'train_parameters.npy'), train_parameters)
 np.save(os.path.join(pp_path, 'train_hosts.npy'), train_hosts)

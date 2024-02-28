@@ -8,9 +8,9 @@ num_processors = 6
 
 # Settings for training routine
 #------------------------------------------------------------------------------
-epochs = 1000
+epochs = 5000
 learning_rate = 0.0001
-batch_size = 600
+batch_size = 1024
 
 # Model settings
 #------------------------------------------------------------------------------
@@ -19,14 +19,15 @@ generate_model_graph = True
 
 # Settings for training data 
 #------------------------------------------------------------------------------
-num_samples = 20000
+num_samples = 30000 #set higher than available samples to take all of them
 test_size = 0.1
 pad_length = 40
 pad_value = -1
 min_points = 6
-max_pressure = 10e6
+max_pressure = 10e06
 max_uptake = 10
 
 # General settings
 #------------------------------------------------------------------------------
-seed = 42
+seed = 54
+split_seed = 54

@@ -52,7 +52,7 @@ class RealTimeHistory(keras.callbacks.Callback):
             plt.ylabel('MAE')
             plt.xlabel('epoch')       
             plt.tight_layout()
-            plt.savefig(fig_path, bbox_inches = 'tight', format = 'jpeg', dpi = 300)
+            plt.savefig(fig_path, bbox_inches='tight', format='jpeg', dpi=300)
             plt.close()   
 
 
