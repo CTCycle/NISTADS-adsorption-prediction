@@ -577,55 +577,8 @@ class Inference:
         with open(path, 'r') as f:
             configuration = json.load(f)               
         
-        return model, configuration
-    
-    #-------------------------------------------------------------------------- 
-    def dropdown_model_selection(self, path):
-
-        '''
-        Load pretrained keras model (in folders) from the specified directory. 
-        If multiple model directories are found, the user is prompted to select one,
-        while if only one model directory is found, that model is loaded directly.
-        If `load_parameters` is True, the function also loads the model parameters 
-        from the target .json file in the same directory. 
-
-        Keyword arguments:
-            path (str): The directory path where the pretrained models are stored.
-            load_parameters (bool, optional): If True, the function also loads the 
-                                              model parameters from a JSON file. 
-                                              Default is True.
-
-        Returns:
-            model (keras.Model): The loaded Keras model.
-
-        '''        
-        model_folders = [entry.name for entry in os.scandir(path) if entry.is_dir()]
-    
-        if len(model_folders) > 1:
-            model_folders.sort()
-            dropdown = Dropdown(options=model_folders, description='Select Model:')
-            display(dropdown)
-            # Wait for the user to select a model. This cell should be manually executed again after selection.            
-            self.folder_path = os.path.join(path, dropdown.value)
-
-        elif len(model_folders) == 1:
-            self.folder_path = os.path.join(path, model_folders[0])
-        else:
-            raise FileNotFoundError('No model directories found in the specified path.')
-        
-        model_path = os.path.join(self.folder_path, 'model')
-        model = tf.keras.models.load_model(model_path)
-        
-        configuration = {}        
-        parameters_path = os.path.join(self.folder_path, 'model_parameters.json')
-        if os.path.exists(parameters_path):
-            with open(parameters_path, 'r') as f:
-                configuration = json.load(f)
-        else:
-            print('No parameters file found. Continuing without loading parameters.')
-            
-        return model, configuration
-    
+        return model, configuration    
+   
     #--------------------------------------------------------------------------
     def sequence_recovery(self, pressure, true_Y, pred_Y, pad_value, 
                           pressure_normalizer, uptake_normalizer):
@@ -642,8 +595,6 @@ class Inference:
         pressure_recovered = [pressure_normalizer.inverse_transform(x.reshape(-1, 1)) for x in pressure_recovered]
 
         return pressure_recovered, true_Y_recovered, pred_Y_recovered
-
-
         
     
 # [MODEL VALIDATION]
