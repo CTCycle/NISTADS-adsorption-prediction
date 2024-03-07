@@ -261,8 +261,7 @@ class DataValidation:
         self.parameters = ['temperature', 'mol_weight', 'complexity', 'covalent_units', 
                            'H_acceptors', 'H_donors', 'heavy_atoms']
         self.categoricals  = ['adsorbent_name', 'adsorbates_name'] 
-        self.sequences  = ['pressure_in_Pascal', 'uptake_in_mol_g']
-        
+        self.sequences  = ['pressure_in_Pascal', 'uptake_in_mol_g']        
 
     #--------------------------------------------------------------------------
     def check_missing_values(self, dataset):
@@ -286,8 +285,7 @@ class DataValidation:
         else:
             print('No columns with missing values\n')
 
-        return missing_values
-         
+        return missing_values         
 
     #--------------------------------------------------------------------------
     def plot_histograms(self, dataset, path):
