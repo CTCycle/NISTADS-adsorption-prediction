@@ -626,7 +626,8 @@ class ModelValidation:
             ax.set_xlabel('pressure (Pa)')
         fig.legend(loc='upper right')
         plt.tight_layout()
-        plt.savefig(fig_path, bbox_inches='tight', format='jpeg', dpi=400)        
+        plt.savefig(fig_path, bbox_inches='tight', format='jpeg', dpi=400) 
+        plt.show()       
         plt.close()          
 
         

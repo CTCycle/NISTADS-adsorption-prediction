@@ -19,9 +19,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # import modules and classes
 #------------------------------------------------------------------------------
-from components.data_assets import PreProcessing
-from components.model_assets import ModelTraining, RealTimeHistory, SCADSModel
-import components.global_paths as globpt
+from utils.data_assets import PreProcessing
+from utils.model_assets import ModelTraining, RealTimeHistory, SCADSModel
+import utils.global_paths as globpt
 import configurations as cnf
 
 # specify relative paths from global paths and create subfolders
@@ -100,7 +100,7 @@ aggregate_dict = {'temperature' : 'first',
                   'H_donors' : 'first',
                   'heavy_atoms' : 'first', 
                   'pressure_in_Pascal' : list,
-                  'uptake_in_mol/g' : list}
+                  'uptake_in_mol_g' : list}
    
 # group dataset by experiments and drop filename column as it is not necessary
 dataset_grouped = dataset.groupby('filename', as_index=False).agg(aggregate_dict)

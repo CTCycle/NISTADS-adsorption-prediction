@@ -8,7 +8,7 @@ num_processors = 6
 
 # Settings for training routine
 #------------------------------------------------------------------------------
-epochs = 5000
+epochs = 6000
 learning_rate = 0.0001
 batch_size = 1024
 
@@ -30,4 +30,4 @@ max_uptake = 10
 # General settings
 #------------------------------------------------------------------------------
 seed = 54
-split_seed = 54
+split_seed = 425
