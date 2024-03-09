@@ -43,23 +43,17 @@ By following these steps, you can ensure that your environment is configured to 
 XLA is designed to optimize computations for speed and efficiency, particularly beneficial when working with TensorFlow and other machine learning frameworks that support XLA. By incorporating XLA acceleration, you can achieve significant performance improvements in numerical computations, especially for large-scale machine learning models. XLA integration is directly available in TensorFlow but may require enabling specific settings or flags. To enable XLA acceleration globally across your system, you need to set an environment variable named `XLA_FLAGS`. The value of this variable should be `--xla_gpu_cuda_data_dir=path\to\XLA`, where `path\to\XLA` must be replaced with the actual directory path that leads to the folder containing the nvvm subdirectory. It is crucial that this path directs to the location where the file `libdevice.10.bc` resides, as this file is essential for the optimal functioning of XLA. This setup ensures that XLA can efficiently interface with the necessary CUDA components for GPU acceleration.
 
 ## How to use
-The user can navigate the project folder to find different subfolders, depending on the desired task to perform. The `component\` directory serves as the home for fundamental files crucial for the flawless operation of the program. It's imperative not to tamper with these files as any modifications could prevent the script from properly working.
+The user can navigate the project folder to find different subfolders, depending on the desired task to perform. The `utils\` directory serves as the home for fundamental files crucial for the flawless operation of the program. It's imperative not to tamper with these files as any modifications could prevent the script from properly working.
 
-**Data**
-This folder contains the data utilized for the model training. The main files present in this location are:
-- `adsorbates_dataset.csv` provides information about the adsorbates species
-- `adsorbents_dataset.csv` provides information about the adsorbent materials
-- `SCADS_dataset.csv` contains the data that will be used for SCADS training
-Execute `data_validation.py` to conduct an in-depth analysis leveraging the adsorption isotherm dataset.
+**Data:** this folder contains the data utilized for the model training. The main files present in this location are:
+- `adsorbates_dataset.csv` provides information about the adsorbates species;
+- `adsorbents_dataset.csv` provides information about the adsorbent materials;
+- `SCADS_dataset.csv` contains the data that will be used for SCADS training;
+Run `data_validation.ipynb` to start a jupyter notebook for explorative data analysis (EDA) of the adsorption isotherm dataset.
 
-**Model**
-In this folder are the necessary files for conducting model training and evaluation:
-- `model/checkpoints` acts as the default repository where checkpoints of pre-trained models are stored.
-- Run `model_training.py` to initiate the training process for deep learning models.
-- Run `model_evaluation.py` to evaluate the performance metrics of pre-trained models.
+**Training:** contains the necessary files for conducting model training and evaluation. `model/checkpoints` acts as the default repository where checkpoints of pre-trained models are stored. Run `model_training.py` to initiate the training process for deep learning models, or launch `model_evaluation.ipynb` to perform a model performance analysis using different metrics on pretrained models checkpoints. 
 
-**Inference**
-Use `adsorption_predictions.py` from this directory to predict adsorption given empirical pressure series and parameters. The predicted values are saved in `SCADS_predictions.py`. 
+**Inference:** use `adsorption_predictions.py` from this directory to predict adsorption given empirical pressure series and parameters. The predicted values are saved in `SCADS_predictions.py`. 
 
 ### Configurations
 The configurations.py file allows to change the script configuration. The following parameters are available:
@@ -91,6 +85,7 @@ The configurations.py file allows to change the script configuration. The follow
 
 **General settings:**
 - `seed:` global random seed
+- `split_seed:` random seed for dataset split
 
 ## License
 This project is licensed under the terms of the MIT license. See the LICENSE file for details.

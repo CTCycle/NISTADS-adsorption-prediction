@@ -587,9 +587,6 @@ class Inference:
         true_Y_recovered = [np.delete(true_Y[i], indices_to_remove[i]) for i in range(len(pressure))]
         pred_Y_recovered = [np.delete(pred_Y[i], indices_to_remove[i]) for i in range(len(pressure))]
         pressure_recovered = [np.delete(pressure[i], indices_to_remove[i]) for i in range(len(pressure))]
-
-
-
         true_Y_recovered = [uptake_normalizer.inverse_transform(x.reshape(-1, 1)) for x in true_Y_recovered]
         pred_Y_recovered = [uptake_normalizer.inverse_transform(x.reshape(-1, 1)) for x in pred_Y_recovered]
         pressure_recovered = [pressure_normalizer.inverse_transform(x.reshape(-1, 1)) for x in pressure_recovered]
