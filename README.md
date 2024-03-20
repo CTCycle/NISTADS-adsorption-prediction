@@ -55,7 +55,7 @@ Run `data_validation.ipynb` to start a jupyter notebook for explorative data ana
 
 **Inference:** use `adsorption_predictions.py` from this directory to predict adsorption given empirical pressure series and parameters. The predicted values are saved in `SCADS_predictions.py`. 
 
-### 5. Configurations
+### 4.1. Configurations
 The configurations.py file allows to change the script configuration. 
 
 | Category              | Setting               | Description                                                              |
