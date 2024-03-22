@@ -32,12 +32,6 @@ os.mkdir(cp_path) if not os.path.exists(cp_path) else None
 # [PREPROCESS DATASET]
 #==============================================================================
 #==============================================================================
-print(f'''
--------------------------------------------------------------------------------
-NISTADS data preprocessing
--------------------------------------------------------------------------------
-...
-''')
 
 # create model folder and subfolder for preprocessed data 
 #------------------------------------------------------------------------------
@@ -53,91 +47,20 @@ os.mkdir(pp_path) if not os.path.exists(pp_path) else None
 #------------------------------------------------------------------------------
 file_loc = os.path.join(globpt.data_path, 'SCADS_dataset.csv') 
 df_adsorption = pd.read_csv(file_loc, sep=';', encoding = 'utf-8')
-file_loc = os.path.join(globpt.data_path, 'adsorbates_dataset.csv') 
-df_adsorbates = pd.read_csv(file_loc, sep=';', encoding = 'utf-8')
-file_loc = os.path.join(globpt.data_path, 'adsorbents_dataset.csv') 
-df_adsorbents = pd.read_csv(file_loc, sep=';', encoding = 'utf-8')
 
-# add molecular properties based on PUGCHEM API data
-#------------------------------------------------------------------------------ 
-print('Adding physicochemical properties from guest species dataset\n')
-dataset = preprocessor.add_guest_properties(df_adsorption, df_adsorbates)
-dataset = dataset.dropna()
-
-# filter experiments leaving only valid uptake and pressure units, then convert 
-# pressure and uptake to Pa (pressure) and mol/kg (uptake)
+# transform series from unique string to lists
 #------------------------------------------------------------------------------
-
-# filter experiments by pressure and uptake units 
-dataset = dataset[dataset[preprocessor.Q_unit_col].isin(preprocessor.valid_units)]
-
-# convert pressures to Pascal
-dataset[preprocessor.P_col] = dataset.progress_apply(lambda x : preprocessor.pressure_converter(x[preprocessor.P_unit_col], 
-                                                                                                x['pressure']), 
-                                                                                                axis = 1)
-# convert uptakes to mol/g
-dataset[preprocessor.Q_col] = dataset.progress_apply(lambda x : preprocessor.uptake_converter(x[preprocessor.Q_unit_col], 
-                                                                                              x['adsorbed_amount'], 
-                                                                                              x['mol_weight']), 
-                                                                                              axis = 1)
-
-# further filter the dataset to remove experiments which values are outside desired boundaries, 
-# such as experiments with negative temperature, pressure and uptake values
-#------------------------------------------------------------------------------ 
-dataset = dataset[dataset['temperature'].astype(int) > 0]
-dataset = dataset[dataset[preprocessor.P_col].astype(float).between(0.0, cnf.max_pressure)]
-dataset = dataset[dataset[preprocessor.Q_col].astype(float).between(0.0, cnf.max_uptake)]
-
-# Aggregate values using groupby function in order to group the dataset by experiments
-#------------------------------------------------------------------------------ 
-aggregate_dict = {'temperature' : 'first',                  
-                  'adsorbent_name' : 'first',
-                  'adsorbates_name' : 'first',                  
-                  'complexity' : 'first',                  
-                  'mol_weight' : 'first',
-                  'covalent_units' : 'first',
-                  'H_acceptors' : 'first',
-                  'H_donors' : 'first',
-                  'heavy_atoms' : 'first', 
-                  'pressure_in_Pascal' : list,
-                  'uptake_in_mol_g' : list}
-   
-# group dataset by experiments and drop filename column as it is not necessary
-dataset_grouped = dataset.groupby('filename', as_index=False).agg(aggregate_dict)
-dataset_grouped.drop(columns='filename', axis=1, inplace=True)
-
-# remove series of pressure/uptake with less than X points, drop rows containing nan
-# values and select a subset of samples for training
-#------------------------------------------------------------------------------ 
-dataset_grouped = dataset_grouped[~dataset_grouped[preprocessor.P_col].apply(lambda x: all(elem == 0 for elem in x))]
-dataset_grouped = dataset_grouped[dataset_grouped[preprocessor.P_col].apply(lambda x: len(x)) >= cnf.min_points]
-dataset_grouped = dataset_grouped.dropna()
-total_experiments = dataset_grouped.shape[0]
-
-# check to avoid errors when selecting number of samples higher than effectively 
-# available samples. If less are available, the entire dataset is selected
-if cnf.num_samples < total_experiments:
-    dataset_grouped = dataset_grouped.sample(n=cnf.num_samples, random_state=30).reset_index()
-
-# preprocess sequences to remove leading 0 values (some experiments may have several
-# zero measurements at the start), make sure that every experiment starts with pressure
-# of 0 Pa and uptake of 0 mol/g (effectively converges to zero)
-#------------------------------------------------------------------------------
-dataset_grouped[[preprocessor.P_col, preprocessor.Q_col]] = dataset_grouped.apply(lambda row: 
-                 preprocessor.remove_leading_zeros(row[preprocessor.P_col],
-                 row[preprocessor.Q_col]), axis=1, result_type='expand')
+df_adsorption['pressure_in_Pascal'] = df_adsorption['pressure_in_Pascal'].apply(lambda x : [float(f) for f in x.split()])
+df_adsorption['uptake_in_mol_g'] = df_adsorption['uptake_in_mol_g'].apply(lambda x : [float(f) for f in x.split()])
 
 # split dataset in train and test subsets
 #------------------------------------------------------------------------------
-train_X, test_X, train_Y, test_Y = preprocessor.split_dataset(dataset_grouped, cnf.test_size, cnf.split_seed)
+train_X, test_X, train_Y, test_Y = preprocessor.split_dataset(df_adsorption, cnf.test_size, cnf.split_seed)
 
 # [PREPROCESS DATASET: NORMALIZING AND ENCODING]
 #==============================================================================
 #==============================================================================
-
-# encode categorical variables (adsorbents and adsorbates names)
-#------------------------------------------------------------------------------
-print('Encoding categorical variables\n')
+print('\nEncoding categorical variables')
 
 # determine number of unique adsorbents and adsorbates from the train dataset
 unique_adsorbents = train_X['adsorbent_name'].nunique() + 1
@@ -191,24 +114,6 @@ train_inputs = [train_parameters, train_hosts, train_guests, train_pressures]
 test_inputs = [test_parameters, test_hosts, test_guests, test_pressures] 
 validation_data = (test_inputs, test_uptakes)  
 
-# print report
-#------------------------------------------------------------------------------ 
-print(f'''
--------------------------------------------------------------------------------   
-DATA ANALYSIS REPORT
--------------------------------------------------------------------------------
-Number of experiments before filtering: {df_adsorption.groupby('filename').ngroup().nunique()}
-Number of experiments upon filtering:   {dataset.groupby('filename').ngroup().nunique()}
-Number of experiments removed:          {df_adsorption.groupby('filename').ngroup().nunique() - dataset.groupby('filename').ngroup().nunique()}
--------------------------------------------------------------------------------
-Total number of experiments:             {total_experiments}
-Selected number of experiments:          {cnf.num_samples}
-Actual number of experiments:            {dataset_grouped.shape[0]}
-Total number of experiments (train set): {train_X.shape[0]}
-Total number of experiments (test set):  {test_X.shape[0]}
--------------------------------------------------------------------------------
-''')
-
 # save normalizers and encoders  
 #------------------------------------------------------------------------------
 normalizer_path = os.path.join(pp_path, 'parameters_normalizer.pkl')
@@ -246,11 +151,16 @@ np.save(os.path.join(pp_path, 'test_uptakes.npy'), test_uptakes)
 # [BUILD SCADS MODEL]
 #==============================================================================
 #==============================================================================
+
+# print report
+#------------------------------------------------------------------------------ 
 print(f'''
+-------------------------------------------------------------------------------   
+TRAINING REPORT
 -------------------------------------------------------------------------------
-Model training
+Total number of experiments (train set): {train_X.shape[0]}
+Total number of experiments (test set):  {test_X.shape[0]}
 -------------------------------------------------------------------------------
-...
 ''')
   
 # initialize training device

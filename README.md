@@ -60,24 +60,21 @@ The configurations.py file allows to change the script configuration.
 
 | Category              | Setting               | Description                                                              |
 |-----------------------|-----------------------|--------------------------------------------------------------------------|
-| Advanced settings     | use_mixed_precision   | Whether to use mixed precision for faster training (mix float16/float32).|
+| **Advanced settings** | use_mixed_precision   | Whether to use mixed precision for faster training (mix float16/float32).|
 |                       | use_tensorboard       | Activate or deactivate tensorboard logging.                              |
 |                       | XLA_acceleration      | Use of linear algebra acceleration for faster training.                  |
 |                       | training_device       | Select the training device (CPU or GPU).                                 |
 |                       | num_processors        | Number of processors (cores) to be used during training.                 |
-| Training routine      | epochs                | Number of training iterations.                                           |
+| **Training settings** | epochs                | Number of training iterations.                                           |
 |                       | learning_rate         | Learning rate of the model.                                              |
 |                       | batch_size            | Size of batches to be fed to the model during training.                  |
-| Model settings        | embedding_dims        | Embedding dimensions for guest and host inputs.                          |
+| **Model settings**    | embedding_dims        | Embedding dimensions for guest and host inputs.                          |
 |                       | generate_model_graph  | Generate and save 2D model graph (as .png file).                         |
-| Training data         | num_samples           | Number of experiments to consider for training.                          |
+| **Training data**     | num_samples           | Number of experiments to consider for training.                          |
 |                       | test_size             | Size of the test dataset (fraction of total samples).                    |
 |                       | pad_length            | Max length of the pressure/uptake series (for padding).                  |
 |                       | pad_value             | Number to assign to padded values (default: -1).                         |
-|                       | min_points            | Minimum amount of measurements points for an experiment to be selected.  |
-|                       | max_pressure          | Maximum allowed pressure (in Pascal).                                    |
-|                       | max_uptake            | Maximum allowed uptake (in mol/g).                                       |
-| General settings      | seed                  | Global random seed.                                                      |
+| **General settings**  | seed                  | Global random seed.                                                      |
 |                       | split_seed            | Random seed for dataset split.                                           |
 
 ## License
