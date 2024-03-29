@@ -15,8 +15,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # import modules and classes
 #------------------------------------------------------------------------------
-from utils.data_assets import PreProcessing
-from utils.model_assets import Inference, ModelValidation
+from utils.preprocessing import PreProcessing
+from utils.inference import Inference
+from utils.validation import ModelValidation
 import utils.global_paths as globpt
 import configurations as cnf
 
@@ -28,13 +29,6 @@ os.mkdir(cp_path) if not os.path.exists(cp_path) else None
 # [LOAD MODEL AND DATA]
 #==============================================================================
 #==============================================================================
-print(f'''
--------------------------------------------------------------------------------
-SCADS predictions
--------------------------------------------------------------------------------
-This module analyses the NIST adsorption dataset obtained by extracting data from 
-NIST database online. The procedure will be separately performed on the single 
-component isotherm dataset''')
 
 # define column names
 #------------------------------------------------------------------------------

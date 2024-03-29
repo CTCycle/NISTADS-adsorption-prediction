@@ -1,5 +1,4 @@
 import os
-import pandas as pd
 import numpy as np
 from datetime import datetime
 import matplotlib.pyplot as plt
@@ -9,6 +8,29 @@ from sklearn.preprocessing import MinMaxScaler, OrdinalEncoder
 from tqdm import tqdm
 tqdm.pandas()
       
+#------------------------------------------------------------------------------
+def model_savefolder(self, path, model_name):
+
+    '''
+    Creates a folder with the current date and time to save the model.
+
+    Keyword arguments:
+        path (str):       A string containing the path where the folder will be created.
+        model_name (str): A string containing the name of the model.
+
+    Returns:
+        str: A string containing the path of the folder where the model will be saved.
+    
+    '''        
+    today_datetime = str(datetime.now())
+    truncated_datetime = today_datetime[:-10]
+    today_datetime = truncated_datetime.replace(':', '').replace('-', '').replace(' ', 'H') 
+    folder_name = f'{model_name}_{today_datetime}'
+    model_folder_path = os.path.join(path, self.folder_name)
+    if not os.path.exists(model_folder_path):
+        os.mkdir(model_folder_path) 
+                
+    return model_folder_path, folder_name
 
 # [DATA PREPROCESSING]
 #==============================================================================
@@ -118,29 +140,7 @@ class PreProcessing:
 
         return dataset     
         
-    #--------------------------------------------------------------------------
-    def model_savefolder(self, path, model_name):
-
-        '''
-        Creates a folder with the current date and time to save the model.
     
-        Keyword arguments:
-            path (str):       A string containing the path where the folder will be created.
-            model_name (str): A string containing the name of the model.
-    
-        Returns:
-            str: A string containing the path of the folder where the model will be saved.
-        
-        '''        
-        today_datetime = str(datetime.now())
-        truncated_datetime = today_datetime[:-10]
-        today_datetime = truncated_datetime.replace(':', '').replace('-', '').replace(' ', 'H') 
-        self.folder_name = f'{model_name}_{today_datetime}'
-        model_folder_path = os.path.join(path, self.folder_name)
-        if not os.path.exists(model_folder_path):
-            os.mkdir(model_folder_path) 
-                    
-        return model_folder_path
     
           
 # [DATA VALIDATION]

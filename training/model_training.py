@@ -19,8 +19,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # import modules and classes
 #------------------------------------------------------------------------------
-from utils.data_assets import PreProcessing
-from utils.model_assets import ModelTraining, RealTimeHistory, SCADSModel
+from utils.preprocessing import PreProcessing, model_savefolder
+from utils.models import ModelTraining, SCADSModel
+from utils.callbacks import RealTimeHistory
 import utils.global_paths as globpt
 import configurations as cnf
 
@@ -36,8 +37,7 @@ os.mkdir(cp_path) if not os.path.exists(cp_path) else None
 # create model folder and subfolder for preprocessed data 
 #------------------------------------------------------------------------------
 preprocessor = PreProcessing()
-model_folder_path = preprocessor.model_savefolder(cp_path, 'SCADS')
-model_folder_name = preprocessor.folder_name
+model_folder_path, model_folder_name = model_savefolder(cp_path, 'SCADS')
 
 # create subfolder where to store preprocessed data
 pp_path = os.path.join(model_folder_path, 'preprocessing')
