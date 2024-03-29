@@ -19,8 +19,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # import modules and classes
 #------------------------------------------------------------------------------
-from utils.preprocessing import PreProcessing, model_savefolder
-from utils.models import ModelTraining, SCADSModel
+from utils.preprocessing import PreProcessing
+from utils.models import ModelTraining, SCADSModel, model_savefolder
 from utils.callbacks import RealTimeHistory
 import utils.global_paths as globpt
 import configurations as cnf
