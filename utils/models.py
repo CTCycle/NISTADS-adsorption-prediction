@@ -6,7 +6,8 @@ import tensorflow as tf
 from tensorflow import keras
 from keras import backend as K
 from keras.models import Model
-from keras import layers                  
+from keras import layers   
+               
 
 #------------------------------------------------------------------------------
 def model_savefolder(path, model_name):
@@ -273,8 +274,6 @@ class QDecoder(layers.Layer):
     
 # [SCADS MODEL]
 #==============================================================================
-# collection of model and submodels
-#==============================================================================
 class SCADSModel:
 
     def __init__(self, learning_rate, num_features, sequence_length, pad_value, adsorbent_dims, 
@@ -356,8 +355,6 @@ class MaskedMeanSquaredError(keras.losses.Loss):
 
 # [CUSTOM MASKED METRIC]
 #==============================================================================
-# collection of model and submodels
-#==============================================================================    
 @keras.utils.register_keras_serializable(package='CustomMetric', name='MaskedMeanAbsoluteError')
 class MaskedMeanAbsoluteError(keras.metrics.Metric):
     def __init__(self, pad_value, name='MaskedMeanAbsoluteError', **kwargs):

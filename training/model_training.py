@@ -180,7 +180,7 @@ else:
 # define and execute training loop, then save the model weights at end
 #------------------------------------------------------------------------------
 multiprocessing = cnf.num_processors > 1
-training = model.fit(train_dataset, validation_data=test_dataset, batch_size=cnf.batch_size, 
+training = model.fit(train_dataset, validation_data=test_dataset,  
                      epochs=cnf.epochs, verbose=1, shuffle=True, callbacks=callbacks, 
                      workers=cnf.num_processors,
                      use_multiprocessing=multiprocessing)

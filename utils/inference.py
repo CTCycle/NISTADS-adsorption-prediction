@@ -14,8 +14,8 @@ class Inference:
         self.seed = seed
         np.random.seed(seed)
         tf.random.set_seed(seed)  
-
-    #-------------------------------------------------------------------------- 
+    
+    #--------------------------------------------------------------------------
     def load_pretrained_model(self, path):
 
         '''
@@ -65,8 +65,8 @@ class Inference:
         elif len(model_folders) == 1:
             self.folder_path = os.path.join(path, model_folders[0])                 
         
-        self.model_path = os.path.join(self.folder_path, 'model') 
-        model = tf.keras.models.load_model(self.model_path)
+        model_path = os.path.join(self.folder_path, 'model') 
+        model = tf.keras.models.load_model(model_path, compile=False)
         path = os.path.join(self.folder_path, 'model_parameters.json')
         with open(path, 'r') as f:
             configuration = json.load(f)               
