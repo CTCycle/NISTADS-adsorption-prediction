@@ -1,12 +1,13 @@
-import os
 import numpy as np
-import matplotlib.pyplot as plt
+import tensorflow as tf
 from keras.api._v2.keras import preprocessing
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler, OrdinalEncoder
 from tqdm import tqdm
 tqdm.pandas()
       
+
+    
 
 # [DATA PREPROCESSING]
 #==============================================================================
@@ -17,7 +18,7 @@ class PreProcessing:
 
     def __init__(self):        
         self.parameters = ['temperature', 'mol_weight', 'complexity', 'covalent_units', 
-                         'H_acceptors', 'H_donors', 'heavy_atoms']
+                           'H_acceptors', 'H_donors', 'heavy_atoms']
         self.ads_col, self.sorb_col  = ['adsorbent_name'], ['adsorbates_name'] 
         self.P_col, self.Q_col  = 'pressure_in_Pascal', 'uptake_in_mol_g'
         self.P_unit_col, self.Q_unit_col  = 'pressureUnits', 'adsorptionUnits'   
@@ -114,161 +115,64 @@ class PreProcessing:
                                                                dtype='float32', 
                                                                padding='post').tolist()           
 
-        return dataset     
+        return dataset 
+
+    #--------------------------------------------------------------------------
+    def create_tf_dataset(self, X_train, X_test, Y_train, Y_test, 
+                          pad_length, batch_size=32, buffer_size=tf.data.AUTOTUNE):
+
+        '''
+        Creates a TensorFlow dataset from a generator. This function initializes 
+        a TensorFlow dataset using a provided generator that yields batches of 
+        inputs and targets. It sets up the dataset with an appropriate output 
+        signature based on the first batch of data from the generator and applies 
+        prefetching to improve data loading efficiency.
+
+        Keyword Arguments:
+            generator (Generator): A generator function or an instance with a `__getitem__` method that yields batches of data.
+            buffer_size (int, optional): The number of elements to prefetch in the dataset. Default is `tf.data.AUTOTUNE`, allowing TensorFlow to automatically tune the buffer size.
+
+        Returns:
+            tf.data.Dataset: A TensorFlow dataset ready for model training or evaluation.
+
+        '''
+        # TRAIN DATASET
+        parameters = X_train[self.parameters].values
+        guests = X_train[self.sorb_col].values
+        hosts = X_train[self.ads_col].values
+        pressures = X_train[self.P_col].values
+        uptakes = Y_train[self.Q_col].values
+        # create datasets from tensor slices
+        tf_parameters = tf.data.Dataset.from_tensor_slices(parameters)
+        tf_guests = tf.data.Dataset.from_tensor_slices(guests)
+        tf_hosts = tf.data.Dataset.from_tensor_slices(hosts)
+        tf_pressures = tf.data.Dataset.from_tensor_slices([np.array(x).reshape(pad_length) for x in pressures])         
+        tf_uptakes = tf.data.Dataset.from_tensor_slices([np.array(x).reshape(pad_length) for x in uptakes])  
+        # create merged tf.dataset
+        train_inputs = tf.data.Dataset.zip((tf_parameters, tf_hosts, tf_guests, tf_pressures))        
+        train_dataset = tf.data.Dataset.zip((train_inputs, tf_uptakes))
+
+        # TEST DATASET
+        parameters = X_test[self.parameters].values
+        guests = X_test[self.sorb_col].values
+        hosts = X_test[self.ads_col].values
+        pressures = X_test[self.P_col].values
+        uptakes = Y_test[self.Q_col].values
+        # create datasets from tensor slices
+        tf_parameters = tf.data.Dataset.from_tensor_slices(parameters)
+        tf_guests = tf.data.Dataset.from_tensor_slices(guests)
+        tf_hosts = tf.data.Dataset.from_tensor_slices(hosts)
+        tf_pressures = tf.data.Dataset.from_tensor_slices([np.array(x).reshape(pad_length) for x in pressures])        
+        tf_uptakes = tf.data.Dataset.from_tensor_slices([np.array(x).reshape(pad_length) for x in uptakes])  
+        # create merged tf.dataset
+        test_inputs = tf.data.Dataset.zip((tf_parameters, tf_hosts, tf_guests, tf_pressures))        
+        test_dataset = tf.data.Dataset.zip((test_inputs, tf_uptakes))
+
+        train_dataset = train_dataset.batch(batch_size).prefetch(buffer_size=buffer_size) 
+        test_dataset = test_dataset.batch(batch_size).prefetch(buffer_size=buffer_size)
+
+        return train_dataset, test_dataset
         
     
     
           
-# [DATA VALIDATION]
-#==============================================================================
-# 
-#==============================================================================
-class DataValidation:   
-
-
-    def __init__(self):
-        
-        self.parameters = ['temperature', 'mol_weight', 'complexity', 'covalent_units', 
-                           'H_acceptors', 'H_donors', 'heavy_atoms']
-        self.categoricals  = ['adsorbent_name', 'adsorbates_name'] 
-        self.sequences  = ['pressure_in_Pascal', 'uptake_in_mol_g']        
-
-    #--------------------------------------------------------------------------
-    def check_missing_values(self, dataset):
-
-        '''
-        Checks for missing values in each column of the dataset 
-        and prints a report of the findings.
-
-        Keyword arguments:
-            dataset (DataFrame): The dataset to be checked for missing values.
-
-        Returns:
-            Series: A pandas Series object where the index corresponds to the column names of the dataset and 
-                    the values are the counts of missing values in each column.
-
-        '''
-        missing_values = dataset.isnull().sum()
-        if missing_values.any():
-            print(f'{len(missing_values)} columns have missing values:')
-            print(missing_values[missing_values > 0])            
-        else:
-            print('No columns with missing values\n')
-
-        return missing_values         
-
-    #--------------------------------------------------------------------------
-    def plot_histograms(self, dataset, path, params, exclude):
-
-        '''
-        Generates histograms for specified columns in a dataset and saves 
-        them as JPEG files to a given directory. This function iterates through 
-        a list of columns, generating a histogram for each. Each histogram is 
-        saved with a filename indicating the column it represents.
-
-        Keyword arguments:
-            dataset (DataFrame): The dataset from which to generate histograms.
-            path (str): The directory path where the histogram images will be saved.
-
-        Return:
-            None
-
-        '''
-        histogram_cols = self.parameters + self.sequences        
-        for column in tqdm(histogram_cols):
-            if column in exclude:
-                continue
-            plot_path = os.path.join(path, f'{column}_histogram.jpeg')
-            values = dataset[column].values
-            if column in self.sequences:
-                values = dataset[column].explode(column).values                          
-            plt.figure(figsize=params['figsize'])  
-            plt.hist(values, bins=20, color=params['color'], edgecolor='black')
-            plt.title(f'histogram_{column}')
-            plt.xlabel(column, fontsize=params['fontsize_labels'])
-            plt.ylabel('Frequency', fontsize=params['fontsize_labels'])
-            plt.grid(params['grid'])                            
-            plt.tight_layout()
-            plt.savefig(plot_path, bbox_inches='tight', format='jpeg', dpi=300)
-            plt.show(block=False)
-            plt.close()
-
-    #--------------------------------------------------------------------------
-    def features_comparison(self, train_X, test_X, train_Y, test_Y):
-
-        '''
-        Compares the statistical properties (mean and standard deviation) of training and testing 
-        datasets for both features and labels.
-
-        Keyword arguments:
-            train_X (DataFrame): The training set features.
-            test_X (DataFrame): The testing set features.
-            train_Y (Series/DataFrame): The training set labels.
-            test_Y (Series/DataFrame): The testing set labels.
-
-        Returns:
-            dict: A dictionary containing the mean and standard deviation differences for each column in the features, 
-                and for the labels, under the key 'Y'. Each entry is a dictionary with keys 'mean_diff' and 'std_diff'.
-
-        '''
-        stats = {}  
-        features_cols = self.parameters + [self.sequences[0]]   
-        
-        for col in features_cols:
-            if col == self.sequences[0]:
-                train_X[col] = train_X[col].explode(col) 
-                test_X[col] = test_X[col].explode(col) 
-            train_mean, test_mean = train_X[col].mean(), test_X[col].mean()
-            train_std, test_std = train_X[col].std(), test_X[col].std()
-            mean_diff = abs(train_mean - test_mean)
-            std_diff = abs(train_std - test_std)
-            stats[col] = [mean_diff, std_diff]
-            stats[col] = {'mean_diff': mean_diff, 'std_diff': std_diff}
-
-        train_Y, test_Y = train_Y.explode(), test_Y.explode()
-        train_mean_Y, test_mean_Y = train_Y.mean(), test_Y.mean()
-        train_std_Y, test_std_Y = train_Y.std(), test_Y.std()
-        mean_diff_Y = abs(train_mean_Y - test_mean_Y)
-        std_diff_Y = abs(train_std_Y - test_std_Y)
-        stats['Y'] = {'mean_diff': mean_diff_Y, 'std_diff': std_diff_Y}
-
-        return stats
-    
-    #--------------------------------------------------------------------------
-    def data_split_validation(self, dataset, test_size, range_val):
-
-        '''
-        Evaluates various train-test splits to find the one where the difference in statistical properties (mean and standard deviation) 
-        between the training and testing sets is minimized for both features and labels.
-
-        Keyword arguments:
-            dataset (DataFrame): The dataset to be split into training and testing sets.
-            test_size (float): The proportion of the dataset to include in the test split.
-            range_val (int): The number of different splits to evaluate.
-
-        Returns:
-            tuple: Contains the minimum difference found across all splits, the seed for the best split, and the statistics 
-                for this split. The statistics are a dictionary with keys for each feature and 'Y' for labels, 
-                where each entry is a dictionary with 'mean_diff' and 'std_diff'.
-        '''
-        inputs = dataset[[x for x in dataset.columns if x != self.sequences[1]]]
-        labels = dataset[self.sequences[1]]
-
-        min_diff = float('inf')
-        best_i = None
-        best_stats = None
-        for i in tqdm(range(range_val)):
-            train_X, test_X, train_Y, test_Y = train_test_split(inputs, labels, test_size=test_size, 
-                                                                random_state=i+1, shuffle=True, 
-                                                                stratify=None)
-            # function call to compare columns by mean and standard deviation
-            stats = self.features_comparison(train_X, test_X, train_Y, test_Y)
-            # Calculate total difference for this split
-            total_diff = sum([sum(values.values()) for key, values in stats.items()])
-            # Update values only if the difference is lower in this iteration
-            if total_diff < min_diff:
-                min_diff = total_diff
-                best_seed = i + 1
-                best_stats = stats        
-
-        return min_diff, best_seed, best_stats

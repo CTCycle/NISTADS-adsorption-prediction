@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import json
+from datetime import datetime
 import tensorflow as tf
 from tensorflow import keras
 from keras import backend as K
@@ -31,9 +32,8 @@ def model_savefolder(path, model_name):
                 
     return model_folder_path, folder_name
 
+
 # [PARAMETRIZER BLOCK]
-#==============================================================================
-# Parametrizer custom layer
 #==============================================================================
 @keras.utils.register_keras_serializable(package='CustomLayers', name='Parametrizer')
 class Parametrizer(layers.Layer):
@@ -77,8 +77,6 @@ class Parametrizer(layers.Layer):
 
 # [BATCH NORMALIZED FFW]
 #==============================================================================
-# Custom layer
-#============================================================================== 
 @keras.utils.register_keras_serializable(package='CustomLayers', name='BNFeedForward')
 class BNFeedForward(layers.Layer):
     def __init__(self, units, seed=42, dropout=0.1, **kwargs):
@@ -117,8 +115,6 @@ class BNFeedForward(layers.Layer):
 
 # [GUEST-HOST ENCODER]
 #==============================================================================
-# Custom layer
-#============================================================================== 
 @keras.utils.register_keras_serializable(package='Encoders', name='GHEncoder')
 class GHEncoder(layers.Layer):
     def __init__(self, seq_length, gvocab_size, hvocab_size, embedding_dims, seed=42, **kwargs):
@@ -171,8 +167,6 @@ class GHEncoder(layers.Layer):
     
 # [PRESSURE ENCODER]
 #==============================================================================
-# Custom layer
-#============================================================================== 
 @keras.utils.register_keras_serializable(package='Encoders', name='PressureEncoder')
 class PressureEncoder(layers.Layer):
 
@@ -232,8 +226,6 @@ class PressureEncoder(layers.Layer):
     
 # [UPTAKE DECODER]
 #==============================================================================
-# Custom layer
-#============================================================================== 
 @keras.utils.register_keras_serializable(package='Decoder', name='QDecoder')
 class QDecoder(layers.Layer):
     def __init__(self, seq_length, seed=42, **kwargs):
@@ -331,8 +323,6 @@ class SCADSModel:
                  
 
 # [CUSTOM MASKED LOSS]
-#==============================================================================
-# collection of model and submodels
 #==============================================================================
 @keras.utils.register_keras_serializable(package='CustomLoss', name='MaskedMeanSquaredError')
 class MaskedMeanSquaredError(keras.losses.Loss):

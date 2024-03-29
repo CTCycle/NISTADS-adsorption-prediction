@@ -32,14 +32,9 @@ os.mkdir(cp_path) if not os.path.exists(cp_path) else None
 
 # [PREPROCESS DATASET]
 #==============================================================================
-#==============================================================================
-
 # create model folder and subfolder for preprocessed data 
 #------------------------------------------------------------------------------
-preprocessor = PreProcessing()
 model_folder_path, model_folder_name = model_savefolder(cp_path, 'SCADS')
-
-# create subfolder where to store preprocessed data
 pp_path = os.path.join(model_folder_path, 'preprocessing')
 os.mkdir(pp_path) if not os.path.exists(pp_path) else None
 
@@ -55,10 +50,10 @@ df_adsorption['uptake_in_mol_g'] = df_adsorption['uptake_in_mol_g'].apply(lambda
 
 # split dataset in train and test subsets
 #------------------------------------------------------------------------------
+preprocessor = PreProcessing()
 train_X, test_X, train_Y, test_Y = preprocessor.split_dataset(df_adsorption, cnf.test_size, cnf.split_seed)
 
 # [PREPROCESS DATASET: NORMALIZING AND ENCODING]
-#==============================================================================
 #==============================================================================
 print('\nEncoding categorical variables')
 
@@ -68,23 +63,18 @@ unique_sorbates = train_X['adsorbates_name'].nunique() + 1
 
 # extract pretrained encoders to numerical indexes
 train_X, test_X = preprocessor.GH_encoding(unique_adsorbents, unique_sorbates, train_X, test_X)
-
-# extract pretrained encoders 
 host_encoder = preprocessor.host_encoder
 guest_encoder = preprocessor.guest_encoder
 
 # normalize parameters (temperature, physicochemical properties) and sequences
 #------------------------------------------------------------------------------
-print('\nNormalizing continuous variables (temperature, physicochemical properties)\n')        
-
+print('\nNormalizing continuous variables (temperature, physicochemical properties)\n')
 train_X, train_Y, test_X, test_Y = preprocessor.normalize_parameters(train_X, train_Y.to_frame(), 
                                                                      test_X, test_Y.to_frame())
 
 # normalize sequences of pressure and uptake
 train_X, test_X, pressure_normalizer = preprocessor.normalize_sequences(train_X, test_X, preprocessor.P_col)
 train_Y, test_Y, uptake_normalizer = preprocessor.normalize_sequences(train_Y, test_Y, preprocessor.Q_col)
-
-# extract pretrained parameters normalizer
 param_normalizer = preprocessor.param_normalizer
 
 # apply padding to the pressure and uptake series (default value is -1 to avoid
@@ -95,24 +85,12 @@ test_X = preprocessor.sequence_padding(test_X, preprocessor.P_col, cnf.pad_value
 train_Y = preprocessor.sequence_padding(train_Y, preprocessor.Q_col, cnf.pad_value, cnf.pad_length)
 test_Y = preprocessor.sequence_padding(test_Y, preprocessor.Q_col, cnf.pad_value, cnf.pad_length)
 
-# prepare inputs and outputs
+# generate tf.datasets
 #------------------------------------------------------------------------------ 
-train_parameters = train_X[preprocessor.parameters].values
-train_hosts = train_X[preprocessor.ads_col].values
-train_guests = train_X[preprocessor.sorb_col].values
-train_pressures = np.array(train_X[preprocessor.P_col].to_list()).reshape(-1, cnf.pad_length)
-train_uptakes = np.array(train_Y[preprocessor.Q_col].to_list()).reshape(-1, cnf.pad_length)
-
-test_parameters = test_X[preprocessor.parameters].values
-test_hosts = test_X[preprocessor.ads_col].values
-test_guests = test_X[preprocessor.sorb_col].values
-test_pressures = np.array(test_X[preprocessor.P_col].to_list()).reshape(-1, cnf.pad_length)
-test_uptakes = np.array(test_Y[preprocessor.Q_col].to_list()).reshape(-1, cnf.pad_length)
-
-# create list of inputs for both train and test datasets
-train_inputs = [train_parameters, train_hosts, train_guests, train_pressures] 
-test_inputs = [test_parameters, test_hosts, test_guests, test_pressures] 
-validation_data = (test_inputs, test_uptakes)  
+train_dataset, test_dataset = preprocessor.create_tf_dataset(train_X, test_X,
+                                                             train_Y, test_Y,
+                                                             cnf.pad_length,
+                                                             cnf.batch_size)
 
 # save normalizers and encoders  
 #------------------------------------------------------------------------------
@@ -134,24 +112,17 @@ with open(encoder_path, 'wb') as file:
 
 # save npy files
 #------------------------------------------------------------------------------    
-# Save training data
-np.save(os.path.join(pp_path, 'train_parameters.npy'), train_parameters)
-np.save(os.path.join(pp_path, 'train_hosts.npy'), train_hosts)
-np.save(os.path.join(pp_path, 'train_guests.npy'), train_guests)
-np.save(os.path.join(pp_path, 'train_pressures.npy'), train_pressures)
-np.save(os.path.join(pp_path, 'train_uptakes.npy'), train_uptakes)
-
-# Save testing data
-np.save(os.path.join(pp_path, 'test_parameters.npy'), test_parameters)
-np.save(os.path.join(pp_path, 'test_hosts.npy'), test_hosts)
-np.save(os.path.join(pp_path, 'test_guests.npy'), test_guests)
-np.save(os.path.join(pp_path, 'test_pressures.npy'), test_pressures)
-np.save(os.path.join(pp_path, 'test_uptakes.npy'), test_uptakes)
+filename = os.path.join(pp_path, 'X_train.csv')
+train_X.to_csv(filename, sep=';', encoding='utf-8')
+filename = os.path.join(pp_path, 'X_test.csv')
+test_X.to_csv(filename, sep=';', encoding='utf-8')
+filename = os.path.join(pp_path, 'Y_train.csv')
+train_Y.to_csv(filename, sep=';', encoding='utf-8')
+filename = os.path.join(pp_path, 'Y_test.csv')
+test_Y.to_csv(filename, sep=';', encoding='utf-8')
 
 # [BUILD SCADS MODEL]
 #==============================================================================
-#==============================================================================
-
 # print report
 #------------------------------------------------------------------------------ 
 print(f'''
@@ -192,7 +163,6 @@ if cnf.generate_model_graph==True:
 # to visualize tensorboard report, use command prompt on the model folder and 
 # upon activating environment, use the bash command: 
 # python -m tensorboard.main --logdir tensorboard/
-#==============================================================================
 
 # initialize real time plot callback 
 #------------------------------------------------------------------------------
@@ -210,9 +180,9 @@ else:
 # define and execute training loop, then save the model weights at end
 #------------------------------------------------------------------------------
 multiprocessing = cnf.num_processors > 1
-training = model.fit(x=train_inputs, y=train_uptakes, batch_size=cnf.batch_size, 
-                     validation_data=validation_data, epochs=cnf.epochs, 
-                     verbose=1, shuffle=True, callbacks=callbacks, workers=cnf.num_processors,
+training = model.fit(train_dataset, validation_data=test_dataset, batch_size=cnf.batch_size, 
+                     epochs=cnf.epochs, verbose=1, shuffle=True, callbacks=callbacks, 
+                     workers=cnf.num_processors,
                      use_multiprocessing=multiprocessing)
 
 model_files_path = os.path.join(model_folder_path, 'model')

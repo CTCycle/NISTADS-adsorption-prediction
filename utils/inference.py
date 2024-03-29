@@ -66,7 +66,7 @@ class Inference:
             self.folder_path = os.path.join(path, model_folders[0])                 
         
         self.model_path = os.path.join(self.folder_path, 'model') 
-        model = tf.keras.models.load_model(self.model_path, compile=True)
+        model = tf.keras.models.load_model(self.model_path)
         path = os.path.join(self.folder_path, 'model_parameters.json')
         with open(path, 'r') as f:
             configuration = json.load(f)               
