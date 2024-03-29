@@ -9,7 +9,7 @@ from tqdm import tqdm
 tqdm.pandas()
       
 #------------------------------------------------------------------------------
-def model_savefolder(self, path, model_name):
+def model_savefolder(path, model_name):
 
     '''
     Creates a folder with the current date and time to save the model.
@@ -26,7 +26,7 @@ def model_savefolder(self, path, model_name):
     truncated_datetime = today_datetime[:-10]
     today_datetime = truncated_datetime.replace(':', '').replace('-', '').replace(' ', 'H') 
     folder_name = f'{model_name}_{today_datetime}'
-    model_folder_path = os.path.join(path, self.folder_name)
+    model_folder_path = os.path.join(path, folder_name)
     if not os.path.exists(model_folder_path):
         os.mkdir(model_folder_path) 
                 
