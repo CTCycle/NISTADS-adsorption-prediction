@@ -110,8 +110,15 @@ encoder_path = os.path.join(pp_path, 'guest_encoder.pkl')
 with open(encoder_path, 'wb') as file:
     pickle.dump(guest_encoder, file) 
 
-# save npy files
-#------------------------------------------------------------------------------    
+# save .csv files 
+#------------------------------------------------------------------------------     
+# at first, convert sequences into single strings
+train_X['pressure_in_Pascal'] = train_X['pressure_in_Pascal'].apply(lambda x : ' '.join([str(f) for f in x])) 
+test_X['pressure_in_Pascal'] = test_X['pressure_in_Pascal'].apply(lambda x : ' '.join([str(f) for f in x]))
+train_Y['uptake_in_mol_g'] = train_Y['uptake_in_mol_g'].apply(lambda x : ' '.join(x)) 
+test_Y = test_Y.apply(lambda x : ' '.join(x)) 
+
+# save files
 filename = os.path.join(pp_path, 'X_train.csv')
 train_X.to_csv(filename, sep=';', encoding='utf-8')
 filename = os.path.join(pp_path, 'X_test.csv')
@@ -120,6 +127,12 @@ filename = os.path.join(pp_path, 'Y_train.csv')
 train_Y.to_csv(filename, sep=';', encoding='utf-8')
 filename = os.path.join(pp_path, 'Y_test.csv')
 test_Y.to_csv(filename, sep=';', encoding='utf-8')
+
+# reconvert strings into list of items
+train_X['pressure_in_Pascal'] = train_X['pressure_in_Pascal'].apply(lambda x : [float(f) for f in x.split()])  
+test_X['pressure_in_Pascal'] = test_X['pressure_in_Pascal'].apply(lambda x : [float(f) for f in x.split()])   
+train_Y = train_Y.apply(lambda x : x.split())  
+test_Y = test_Y.apply(lambda x : x.split())  
 
 # [BUILD SCADS MODEL]
 #==============================================================================
@@ -198,7 +211,7 @@ Training session is over. Model has been saved in folder {model_folder_name}
 #------------------------------------------------------------------------------
 parameters = {'train_samples' : train_X.shape[0],
               'test_samples' : test_X.shape[0],             
-              'sequence_lenght' : cnf.pad_length,
+              'sequence_length' : cnf.pad_length,
               'padding_value' : cnf.pad_value,
               'embedding_dimensions' : cnf.embedding_dims,             
               'batch_size' : cnf.batch_size,
