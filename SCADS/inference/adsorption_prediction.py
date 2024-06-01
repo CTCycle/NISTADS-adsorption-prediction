@@ -18,8 +18,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from utils.preprocessing import PreProcessing
 from utils.inference import Inference
 from utils.validation import ModelValidation
-import utils.global_paths as globpt
-import configurations as cnf
+import SCADS.config.pathfinder as globpt
+import SCADS.config.configurations as cnf
 
 # specify relative paths from global paths and create subfolders
 #------------------------------------------------------------------------------

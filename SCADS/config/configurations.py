@@ -1,33 +1,33 @@
 # Advanced settings for training 
 #------------------------------------------------------------------------------
-use_mixed_precision = False
-use_tensorboard = False
-XLA_acceleration = False
-training_device = 'GPU'
-num_processors = 6
+USE_MIXED_PRECISION = False
+USE_TENSORBOARD = False
+XLA_ACCELERATION = False
+ML_DEVICE = 'GPU'
+NUM_PROCESSORS = 6
 
 # Settings for training routine
 #------------------------------------------------------------------------------
-epochs = 2000
-learning_rate = 0.0001
-batch_size = 1024
+EPOCHS = 2000
+LEARNING_RATE = 0.0001
+BATCH_SIZE = 1024
 
 # Model settings
 #------------------------------------------------------------------------------
-embedding_dims = 256
-generate_model_graph = True
+EMBEDDING_DIMS = 256
+GENERATE_MODEL_GRAPH = True
 
 # Settings for training data 
 #------------------------------------------------------------------------------
-num_samples = 30000 #set higher than available samples to take all of them
-test_size = 0.1
-pad_length = 40
-pad_value = -1
-min_points = 6
-max_pressure = 10e06
-max_uptake = 10
+NUM_SAMPLES = 30000 #set higher than available samples to take all of them
+TEST_SIZE = 0.1
+PAD_LENGTH = 40
+PAD_VALUE = -1
+MIN_POINTS = 6
+MAX_PRESSURE = 10e06
+MAX_UPTAKE = 10
 
 # General settings
 #------------------------------------------------------------------------------
-seed = 54
-split_seed = 425
+SEED = 54
+SPLIT_SEED = 425
