@@ -1,8 +1,0 @@
-__pycache__
-SCADS/data/validation/*
-SCADS/training/checkpoints/*
-
-!.gitkeep
-
-
-
