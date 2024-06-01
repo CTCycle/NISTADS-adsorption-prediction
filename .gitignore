@@ -1,6 +1,8 @@
 __pycache__
-data/validation/*
-training/checkpoints/*
+SCADS/data/validation/*
+SCADS/training/checkpoints/*
+
+!.gitkeep
 
 
 
