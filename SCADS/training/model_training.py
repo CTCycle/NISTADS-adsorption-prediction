@@ -1,5 +1,4 @@
 import os
-import sys
 import pandas as pd
 import tensorflow as tf
 from keras.utils import plot_model
@@ -8,18 +7,14 @@ tqdm.pandas()
 
 # [SETTING WARNINGS]
 import warnings
-warnings.simplefilter(action='ignore', category = Warning)
-
-# [DEFINE PROJECT FOLDER PATH]
-project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(project_dir) 
+warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from utils.preprocessing import PreProcessPipeline
-from utils.models import ModelTraining, SCADSModel, model_savefolder
-from utils.callbacks import RealTimeHistory
-from config.pathfinder import DATA_PATH, CHECKPOINT_PATH
-import config.configurations as cnf
+from SCADS.commons.utils.preprocessing import PreProcessPipeline
+from SCADS.commons.utils.models import ModelTraining, SCADSModel, model_savefolder
+from SCADS.commons.utils.callbacks import RealTimeHistory
+from SCADS.commons.pathfinder import DATA_PATH, CHECKPOINT_PATH
+import SCADS.commons.configurations as cnf
 
 
 # [RUN MAIN]
