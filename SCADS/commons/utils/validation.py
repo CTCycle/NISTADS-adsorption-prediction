@@ -43,7 +43,7 @@ class DataValidation:
         return missing_values         
 
     #--------------------------------------------------------------------------
-    def plot_histograms(self, dataset, path, params, exclude):
+    def plot_histograms(self, dataset, path, exclude_cols=[]):
 
         '''
         Generates histograms for specified columns in a dataset and saves 
@@ -61,18 +61,17 @@ class DataValidation:
         '''
         histogram_cols = self.parameters + self.sequences        
         for column in tqdm(histogram_cols):
-            if column in exclude:
+            if column in exclude_cols:
                 continue
             plot_path = os.path.join(path, f'{column}_histogram.jpeg')
             values = dataset[column].values
             if column in self.sequences:
                 values = dataset[column].explode(column).values                          
-            plt.figure(figsize=params['figsize'])  
-            plt.hist(values, bins=20, color=params['color'], edgecolor='black')
+            plt.figure(figsize=(16,18))  
+            plt.hist(values, bins=20, color='skyblue', edgecolor='black')
             plt.title(f'histogram_{column}')
-            plt.xlabel(column, fontsize=params['fontsize_labels'])
-            plt.ylabel('Frequency', fontsize=params['fontsize_labels'])
-            plt.grid(params['grid'])                            
+            plt.xlabel(column, fontsize=14)
+            plt.ylabel('Frequency', fontsize=14)                                       
             plt.tight_layout()
             plt.savefig(plot_path, bbox_inches='tight', format='jpeg', dpi=300)
             plt.show(block=False)

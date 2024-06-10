@@ -17,8 +17,8 @@ The extracted data undergoes preprocessing via a tailored pipeline, which starts
 ## 4. Installation
 The installation process is designed for simplicity, using .bat scripts to automatically create a virtual environment with all necessary dependencies. Please ensure that Anaconda or Miniconda is installed on your system before proceeding.
 
-- To set up a CPU-only environment, run `setup/create_cpu_environment.bat`. This script installs the base version of TensorFlow, which is lighter and does not include CUDA libraries.
-- For GPU support, which is necessary for model training on a GPU, use `setup/create_gpu_environment.bat`. This script includes all required CUDA dependencies to enable GPU utilization.
+- To set up a CPU-only environment, run `scripts/create_cpu_environment.bat`. This script installs the base version of TensorFlow, which is lighter and does not include CUDA libraries.
+- For GPU support, which is necessary for model training on a GPU, use `scripts/create_gpu_environment.bat`. This script includes all required CUDA dependencies to enable GPU utilization.
 - Once the environment has been created, run `scripts/package_setup.bat` to install the app package locally.
 - **IMPORTANT:** run `scripts/package_setup.bat` if you move the project folder somewhere else after installation, or the app won't work! 
 
@@ -34,7 +34,7 @@ The user can navigate the project folder to find different subfolders, depending
 - `SCADS_dataset.csv` contains the data that will be used for SCADS training;
 Run `data_validation.ipynb` to start a jupyter notebook for explorative data analysis (EDA) of the adsorption isotherm dataset.
 
-**Training:** contains the necessary files for conducting model training and evaluation. `model/checkpoints` acts as the default repository where checkpoints of pre-trained models are stored. Run `model_training.py` to initiate the training process for deep learning models, or launch `model_evaluation.ipynb` to perform a model performance analysis using different metrics on pretrained models checkpoints. 
+**Training:** contains the necessary files for conducting model training and evaluation. `SCADS/model/checkpoints` acts as the default repository where checkpoints of pre-trained models are stored. Run `model_training.py` to initiate the training process for deep learning models, or launch `model_evaluation.ipynb` to perform a model performance analysis using different metrics on pretrained models checkpoints. 
 
 **Inference:** use `adsorption_predictions.py` from this directory to predict adsorption given empirical pressure series and parameters. The predicted values are saved in `SCADS_predictions.py`. 
 
